@@ -22,6 +22,14 @@
 			<artifactId>code-generator</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>
+
+		<!-- TODO: Replace it with proper spring dependencies-->
+		<dependency>
+			<groupId>com.spiralbank</groupId>
+			<artifactId>AppServer</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+
 	</dependencies>
 
 </project>
