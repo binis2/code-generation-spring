@@ -13,7 +13,7 @@ public class BaseEntityModifier implements Modifier {
 
     private static EntityManager manager;
 
-    private static Object parent;
+    private Object parent;
 
     private static void init() {
         if (isNull(manager)) {
