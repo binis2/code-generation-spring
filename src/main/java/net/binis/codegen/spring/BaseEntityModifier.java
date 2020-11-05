@@ -1,8 +1,8 @@
-package net.binis.demo.spring;
+package net.binis.codegen.spring;
 
-import com.spiralbank.core.tools.ApplicationContextProvider;
 import lombok.extern.slf4j.Slf4j;
-import net.binis.demo.modifier.Modifier;
+import net.binis.codegen.modifier.Modifier;
+import net.binis.codegen.spring.component.ApplicationContextProvider;
 
 import javax.persistence.EntityManager;
 
@@ -27,6 +27,7 @@ public class BaseEntityModifier implements Modifier {
     }
 
     public void delete() {
+        init();
         manager.remove(parent);
     }
 

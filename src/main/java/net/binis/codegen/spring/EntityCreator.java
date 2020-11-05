@@ -1,4 +1,6 @@
-package net.binis.demo.spring;
+package net.binis.codegen.spring;
+
+import net.binis.codegen.exception.GenericCodeGenException;
 
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
@@ -8,7 +10,7 @@ import static java.util.Objects.nonNull;
 
 public class EntityCreator {
 
-    private static Map<Class<?>, Constructor<?>> implementors = new HashMap<>();
+    private static final Map<Class<?>, Constructor<?>> implementors = new HashMap<>();
 
     private EntityCreator() {
         //Do nothing
@@ -21,7 +23,7 @@ public class EntityCreator {
             try {
                 return (T) impl.newInstance();
             } catch (Exception e) {
-                throw new RuntimeException("Cannot create instance for "+ cls.getCanonicalName());
+                throw new GenericCodeGenException("Cannot create instance for "+ cls.getCanonicalName());
             }
         }
         return null;
@@ -31,7 +33,7 @@ public class EntityCreator {
         try {
             implementors.put(intf, impl.getConstructor());
         } catch (Exception e) {
-            throw new RuntimeException("Class "+ impl.getCanonicalName() +" have no default constructor!");
+            throw new GenericCodeGenException("Class "+ impl.getCanonicalName() +" have no default constructor!");
         }
     }
 
