@@ -9,7 +9,7 @@ import javax.persistence.EntityManager;
 import static java.util.Objects.isNull;
 
 @Slf4j
-public class BaseEntityModifier implements Modifier {
+public class BaseEntityModifier<T> implements Modifier<T> {
 
     private static EntityManager manager;
 
@@ -21,14 +21,18 @@ public class BaseEntityModifier implements Modifier {
         }
     }
 
-    public void save() {
+    @SuppressWarnings("unchecked")
+    public T save() {
         init();
         manager.persist(parent);
+        return (T) this;
     }
 
-    public void delete() {
+    @SuppressWarnings("unchecked")
+    public T delete() {
         init();
         manager.remove(parent);
+        return (T) this;
     }
 
     @Override
