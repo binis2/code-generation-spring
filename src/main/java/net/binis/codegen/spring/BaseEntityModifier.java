@@ -9,7 +9,7 @@ import javax.persistence.EntityManager;
 import static java.util.Objects.isNull;
 
 @Slf4j
-public class BaseEntityModifier<T> implements Modifier<T> {
+public class BaseEntityModifier<T> implements Modifier {
 
     private static EntityManager manager;
 
