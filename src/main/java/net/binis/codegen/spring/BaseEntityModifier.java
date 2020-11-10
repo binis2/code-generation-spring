@@ -1,6 +1,7 @@
 package net.binis.codegen.spring;
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.annotation.Final;
 import net.binis.codegen.modifier.Modifier;
 import net.binis.codegen.spring.component.ApplicationContextProvider;
 
@@ -9,11 +10,11 @@ import javax.persistence.EntityManager;
 import static java.util.Objects.isNull;
 
 @Slf4j
-public class BaseEntityModifier<T> implements Modifier {
+public class BaseEntityModifier<T, R> implements Modifier<R> {
 
     private static EntityManager manager;
 
-    private Object parent;
+    private R parent;
 
     private static void init() {
         if (isNull(manager)) {
@@ -22,21 +23,23 @@ public class BaseEntityModifier<T> implements Modifier {
     }
 
     @SuppressWarnings("unchecked")
-    public T save() {
+    @Final
+    public R save() {
         init();
         manager.persist(parent);
-        return (T) this;
+        return (R) this;
     }
 
     @SuppressWarnings("unchecked")
-    public T delete() {
+    @Final
+    public R delete() {
         init();
         manager.remove(parent);
-        return (T) this;
+        return (R) this;
     }
 
     @Override
-    public void setObject(Object parent) {
+    public void setObject(R parent) {
         this.parent = parent;
     }
 }
