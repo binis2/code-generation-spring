@@ -27,7 +27,7 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
     public R save() {
         init();
         manager.persist(parent);
-        return (R) this;
+        return parent;
     }
 
     @SuppressWarnings("unchecked")
@@ -35,7 +35,7 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
     public R delete() {
         init();
         manager.remove(parent);
-        return (R) this;
+        return parent;
     }
 
     @Override
