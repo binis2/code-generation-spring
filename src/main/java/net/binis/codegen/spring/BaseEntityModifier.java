@@ -22,7 +22,6 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Final
     public R save() {
         init();
@@ -30,7 +29,20 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
         return parent;
     }
 
-    @SuppressWarnings("unchecked")
+    @Final
+    public R saveAndFlush() {
+        save();
+        manager.flush();
+        return parent;
+    }
+
+    @Final
+    public R merge() {
+        init();
+        manager.merge(parent);
+        return parent;
+    }
+
     @Final
     public R delete() {
         init();
