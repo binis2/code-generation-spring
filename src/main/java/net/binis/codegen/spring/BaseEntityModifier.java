@@ -62,7 +62,7 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
         init();
         var em = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.warn("Attempt to do action outside of open transaction!");
+            log.debug("Attempt to do action outside of open transaction!");
             template.execute(s -> {
                 var manager = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
                 func.accept(manager);
