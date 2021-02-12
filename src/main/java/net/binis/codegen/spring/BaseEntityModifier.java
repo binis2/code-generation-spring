@@ -12,6 +12,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static java.util.Objects.isNull;
 
@@ -45,7 +46,7 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
 
     @Final
     public R merge() {
-        return with(manager -> manager.merge(parent));
+        return withRes(manager -> manager.merge(parent));
     }
 
     @Final
@@ -73,5 +74,24 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
         }
         return parent;
     }
+
+    private R withRes(Function<EntityManager, R> func) {
+        init();
+        var em = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
+        if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
+            log.debug("Attempt to do action outside of open transaction!");
+            template.execute(s -> {
+                var manager = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
+                parent = func.apply(manager);
+                return null;
+            });
+        } else {
+            parent = func.apply(em);
+        }
+        return parent;
+    }
+
+
+
 
 }
