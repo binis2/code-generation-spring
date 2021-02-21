@@ -1,6 +1,6 @@
 package net.binis.codegen.spring.query;
 
-public interface QueryOrderOperation<R, S> extends QueryExecute<R> {
+public interface QueryOrderOperation<S, R> extends QueryExecute<R> {
 
     S desc();
     S asc();

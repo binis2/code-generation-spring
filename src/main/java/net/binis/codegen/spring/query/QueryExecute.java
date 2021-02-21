@@ -1,7 +1,7 @@
 package net.binis.codegen.spring.query;
 
-public interface QueryExecute<S> {
+public interface QueryExecute<R> {
 
-    S go();
+    R go();
 
 }
