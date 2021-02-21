@@ -17,31 +17,21 @@ import java.util.function.Function;
 import static java.util.Objects.isNull;
 
 @Slf4j
-public class BaseEntityModifier<T, R> implements Modifier<R> {
-
-    private static EntityManagerFactory factory;
-    private static TransactionTemplate template;
-
+public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> implements Modifier<R> {
 
     private R parent;
 
-    private static void init() {
-        if (isNull(factory)) {
-            JpaTransactionManager tm = ApplicationContextProvider.getApplicationContext().getBean(JpaTransactionManager.class);
-            factory = tm.getEntityManagerFactory();
-            template = ApplicationContextProvider.getApplicationContext().getBean(TransactionTemplate.class);
-        }
-    }
-
     @Final
     public R save() {
-        return with(manager -> manager.persist(parent));
+        with(manager -> manager.persist(parent));
+        return parent;
     }
 
     @Final
     public R saveAndFlush() {
         save();
-        return with(EntityManager::flush);
+        with(EntityManager::flush);
+        return parent;
     }
 
     @Final
@@ -51,47 +41,13 @@ public class BaseEntityModifier<T, R> implements Modifier<R> {
 
     @Final
     public R delete() {
-        return with(manager -> manager.remove(parent));
+        with(manager -> manager.remove(parent));
+        return parent;
     }
 
     @Override
     public void setObject(R parent) {
         this.parent = parent;
     }
-
-    private R with(Consumer<EntityManager> func) {
-        init();
-        var em = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
-        if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.debug("Attempt to do action outside of open transaction!");
-            template.execute(s -> {
-                var manager = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
-                func.accept(manager);
-                return null;
-            });
-        } else {
-            func.accept(em);
-        }
-        return parent;
-    }
-
-    private R withRes(Function<EntityManager, R> func) {
-        init();
-        var em = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
-        if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.debug("Attempt to do action outside of open transaction!");
-            template.execute(s -> {
-                var manager = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
-                parent = func.apply(manager);
-                return null;
-            });
-        } else {
-            parent = func.apply(em);
-        }
-        return parent;
-    }
-
-
-
 
 }

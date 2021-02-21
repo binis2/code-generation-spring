@@ -1,6 +1,8 @@
 package net.binis.codegen.spring.query.executor;
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.exception.GenericCodeGenException;
+import net.binis.codegen.spring.BasePersistenceOperations;
 import net.binis.codegen.spring.query.QueryExecute;
 import net.binis.codegen.spring.query.QueryOrderOperation;
 import net.binis.codegen.spring.query.QuerySelectOperation;
@@ -8,10 +10,11 @@ import net.binis.codegen.spring.query.QuerySelectOperation;
 import java.util.ArrayList;
 import java.util.List;
 
-public class QueryExecutor<S, O, R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R> {
+public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R> {
 
     private final StringBuilder query = new StringBuilder();
     private final List<Object> params = new ArrayList<>();
+    private ResultType resultType = ResultType.UNKNOWN;
     private final Class<?> returnClass;
     protected O order;
 
@@ -65,14 +68,17 @@ public class QueryExecutor<S, O, R> implements QuerySelectOperation<S, O, R>, Qu
     }
 
     public S by() {
+        resultType = ResultType.SINGLE;
         return (S) this;
     }
 
     public S all() {
+        resultType = ResultType.LIST;
         return (S) this;
     }
 
     public S count() {
+        resultType = ResultType.COUNT;
         return (S) this;
     }
 
@@ -92,7 +98,21 @@ public class QueryExecutor<S, O, R> implements QuerySelectOperation<S, O, R>, Qu
     public R go() {
         stripLast(",");
         System.out.println(query.toString());
-        return null;
+        return withRes(manager -> {
+            var q = manager.createQuery(query.toString(), returnClass);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(i, params.get(i));
+            }
+            switch (resultType) {
+                case SINGLE:
+                case COUNT:
+                    return (R) q.getSingleResult();
+                case LIST:
+                    return (R) q.getResultList();
+                default:
+                    throw new GenericCodeGenException("Unknown query return type!");
+            }
+        });
     }
 
     private void stripLast(String what) {
@@ -102,6 +122,13 @@ public class QueryExecutor<S, O, R> implements QuerySelectOperation<S, O, R>, Qu
         if (idx > -1 && idx == qlen - wlen) {
             query.setLength(qlen - wlen);
         }
+    }
+
+    private enum ResultType {
+        UNKNOWN,
+        SINGLE,
+        LIST,
+        COUNT;
     }
 
 }
