@@ -7,8 +7,10 @@ import net.binis.codegen.spring.query.QueryExecute;
 import net.binis.codegen.spring.query.QueryOrderOperation;
 import net.binis.codegen.spring.query.QuerySelectOperation;
 
+import javax.persistence.NoResultException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R> {
 
@@ -23,17 +25,22 @@ public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> impleme
         query.append("from ").append(returnClass.getName()).append(" where");
     }
 
-    protected void identifier(String id, Object value) {
+    public void identifier(String id, Object value) {
         params.add(value);
-        query.append(" ").append(id).append(" = ?,");
+        query.append(" (").append(id).append(" = ?").append(params.size()).append(")");
     }
+
+    public void collection(String id, Object value) {
+        params.add(value);
+        query.append(" (?").append(params.size()).append(" member of ").append(id).append(")");
+    }
+
 
     protected void orderIdentifier(String id) {
         query.append(" ").append(id);
     }
 
     protected void orderStart() {
-        stripLast(",");
         stripLast("where");
         query.append(" order by ");
     }
@@ -45,14 +52,35 @@ public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> impleme
     }
 
     @Override
-    public S like(String what) {
-        query.append(" like '").append(what).append("' ");
-        return (S) this;
+    public QuerySelectOperation<S, O, R> like() {
+        var idx = query.lastIndexOf(" = ");
+        var oIdx = query.lastIndexOf(" (");
+        if (idx > oIdx) {
+            query.replace(idx, idx + 3, " like ");
+        } else {
+            throw new IllegalStateException("Invalid usage of like operand!");
+        }
+        return this;
     }
 
-    public S not() {
-        query.append(" not ");
-        return (S) this;
+    @Override
+    public QuerySelectOperation<S, O, R> notLike() {
+        var idx = query.lastIndexOf(" = ");
+        var oIdx = query.lastIndexOf(" (");
+        if (idx > oIdx) {
+            query.replace(idx, idx + 3, " like ");
+            query.replace(oIdx, oIdx + 2, " not (");
+        } else {
+            throw new IllegalStateException("Invalid usage of like operand!");
+        }
+        return this;
+    }
+
+
+    public QuerySelectOperation<S, O, R> not() {
+        var idx = query.lastIndexOf(" (");
+        query.replace(idx, idx + 2, " not (");
+        return this;
     }
 
     @Override
@@ -101,10 +129,15 @@ public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> impleme
         return withRes(manager -> {
             var q = manager.createQuery(query.toString(), returnClass);
             for (int i = 0; i < params.size(); i++) {
-                q.setParameter(i, params.get(i));
+                q.setParameter(i + 1, params.get(i));
             }
             switch (resultType) {
                 case SINGLE:
+                    try {
+                        return (R) Optional.of(q.getSingleResult());
+                    } catch (NoResultException ex) {
+                        return (R) Optional.empty();
+                    }
                 case COUNT:
                     return (R) q.getSingleResult();
                 case LIST:
