@@ -12,16 +12,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static java.util.Objects.nonNull;
+
 public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R> {
 
     private final StringBuilder query = new StringBuilder();
     private final List<Object> params = new ArrayList<>();
     private ResultType resultType = ResultType.UNKNOWN;
     private final Class<?> returnClass;
+    private Class<?> mapClass;
+    private Long first;
+    private Long pageSize;
+    private boolean isNative;
     protected O order;
 
     public QueryExecutor(Class<?> returnClass) {
         this.returnClass = returnClass;
+        mapClass = returnClass;
         query.append("from ").append(returnClass.getName()).append(" where");
     }
 
@@ -107,6 +114,30 @@ public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> impleme
 
     public S count() {
         resultType = ResultType.COUNT;
+        query.insert(0, "select count(*) ");
+        return (S) this;
+    }
+
+    public <QR> QueryExecute<List<QR>> nativeQuery(String query, Class<?> cls) {
+        isNative = true;
+        mapClass = cls;
+        this.query.setLength(0);
+        this.query.append(query);
+        resultType = ResultType.LIST;
+        return (QueryExecute) this;
+    }
+
+    public <QR> QueryExecute<List<QR>> query(String query, Class<?> cls) {
+        mapClass = cls;
+        this.query.setLength(0);
+        this.query.append(query);
+        resultType = ResultType.LIST;
+        return (QueryExecute) this;
+    }
+
+    public S top(long records) {
+        pageSize = records;
+        resultType = ResultType.LIST;
         return (S) this;
     }
 
@@ -125,12 +156,24 @@ public class QueryExecutor<S, O, R> extends BasePersistenceOperations<R> impleme
     @Override
     public R go() {
         stripLast(",");
+        stripLast("where");
         System.out.println(query.toString());
         return withRes(manager -> {
-            var q = manager.createQuery(query.toString(), returnClass);
+            var map = ResultType.COUNT.equals(resultType) ? Long.class : mapClass;
+            var q = isNative ? manager.createNativeQuery(query.toString(), map)
+                    : manager.createQuery(query.toString(), map);
             for (int i = 0; i < params.size(); i++) {
                 q.setParameter(i + 1, params.get(i));
             }
+
+            if (nonNull(first)) {
+                q.setFirstResult(first.intValue());
+            }
+
+            if (nonNull(pageSize)) {
+                q.setMaxResults(pageSize.intValue());
+            }
+
             switch (resultType) {
                 case SINGLE:
                     try {
