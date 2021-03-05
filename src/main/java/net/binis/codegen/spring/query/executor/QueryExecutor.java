@@ -35,11 +35,35 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     public void identifier(String id, Object value) {
         params.add(value);
-        query.append(" (").append(id).append(" = ?").append(params.size()).append(")");
+        if (query.charAt(query.length() - 1) != '.') {
+            query.append(" (");
+        } else {
+            var pos = id.indexOf(".");
+            if (pos > -1 && query.substring(this.query.length() - pos - 1).equals(id.substring(0, pos + 1))) {
+                id = id.substring(pos + 1);
+            }
+        }
+        query.append(id).append(" = ?").append(params.size()).append(")");
     }
 
     public void identifier(String id) {
-        query.append(" (").append(id);
+        if (query.charAt(query.length() - 1) != '.') {
+            query.append(" (");
+        } else {
+            var pos = id.indexOf(".");
+            if (pos > -1 && query.substring(this.query.length() - pos - 1).equals(id.substring(0, pos + 1))) {
+                id = id.substring(pos + 1);
+            }
+        }
+        query.append(id);
+    }
+
+    public void embedded(String id) {
+        if (query.charAt(query.length() - 1) == '.') {
+            query.append(id).append(".");
+        } else {
+            query.append(" (").append(id).append(".");
+        }
     }
 
     public void doNot() {
@@ -164,38 +188,37 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         stripLast(",");
         stripLast("where");
         System.out.println(query.toString());
-        return null;
-//        return withRes(manager -> {
-//            var map = ResultType.COUNT.equals(resultType) ? Long.class : mapClass;
-//            var q = isNative ? manager.createNativeQuery(query.toString(), map)
-//                    : manager.createQuery(query.toString(), map);
-//            for (int i = 0; i < params.size(); i++) {
-//                q.setParameter(i + 1, params.get(i));
-//            }
-//
-//            if (nonNull(first)) {
-//                q.setFirstResult(first.intValue());
-//            }
-//
-//            if (nonNull(pageSize)) {
-//                q.setMaxResults(pageSize.intValue());
-//            }
-//
-//            switch (resultType) {
-//                case SINGLE:
-//                    try {
-//                        return (R) Optional.of(q.getSingleResult());
-//                    } catch (NoResultException ex) {
-//                        return (R) Optional.empty();
-//                    }
-//                case COUNT:
-//                    return (R) q.getSingleResult();
-//                case LIST:
-//                    return (R) q.getResultList();
-//                default:
-//                    throw new GenericCodeGenException("Unknown query return type!");
-//            }
-//        });
+        return withRes(manager -> {
+            var map = ResultType.COUNT.equals(resultType) ? Long.class : mapClass;
+            var q = isNative ? manager.createNativeQuery(query.toString(), map)
+                    : manager.createQuery(query.toString(), map);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(i + 1, params.get(i));
+            }
+
+            if (nonNull(first)) {
+                q.setFirstResult(first.intValue());
+            }
+
+            if (nonNull(pageSize)) {
+                q.setMaxResults(pageSize.intValue());
+            }
+
+            switch (resultType) {
+                case SINGLE:
+                    try {
+                        return (R) Optional.of(q.getSingleResult());
+                    } catch (NoResultException ex) {
+                        return (R) Optional.empty();
+                    }
+                case COUNT:
+                    return (R) q.getSingleResult();
+                case LIST:
+                    return (R) q.getResultList();
+                default:
+                    throw new GenericCodeGenException("Unknown query return type!");
+            }
+        });
     }
 
     @Override
@@ -232,12 +255,14 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     @Override
     public QuerySelectOperation<S, O, R> equal(T value) {
+        stripLast(".");
         operation("=", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> between(T from, T to) {
+        stripLast(".");
         operation("between", from);
         operation("and", to);
         return this;
@@ -245,60 +270,70 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     @Override
     public QuerySelectOperation<S, O, R> in(List<T> values) {
+        stripLast(".");
         operation("in", values);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> isNull() {
-        query.append(" is null");
+        stripLast(".");
+        query.append(" is null)");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> like(String value) {
+        stripLast(".");
         operation("like", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> starts(String value) {
+        stripLast(".");
         operation("like", value + "%");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> ends(String value) {
+        stripLast(".");
         operation("like", "%" + value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> contains(String value) {
+        stripLast(".");
         operation("like", "%" + value + "%");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> greater(T value) {
+        stripLast(".");
         operation(">", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> greaterEqual(T value) {
+        stripLast(".");
         operation(">=", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> less(T value) {
+        stripLast(".");
         operation("<", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> lessEqual(T value) {
+        stripLast(".");
         operation("<=", value);
         return this;
     }
