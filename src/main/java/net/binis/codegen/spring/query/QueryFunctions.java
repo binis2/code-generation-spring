@@ -1,0 +1,20 @@
+package net.binis.codegen.spring.query;
+
+import java.util.List;
+
+public interface QueryFunctions<T, R> {
+
+    R equal(T value);
+    R between(T from, T to);
+    R in(List<T> values);
+    R isNull();
+    R like(String value);
+    R starts(String value);
+    R ends(String value);
+    R contains(String value);
+    R greater(T value);
+    R greaterEqual(T value);
+    R less(T value);
+    R lessEqual(T value);
+
+}
