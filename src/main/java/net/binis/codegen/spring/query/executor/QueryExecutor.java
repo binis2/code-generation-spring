@@ -1,25 +1,18 @@
 package net.binis.codegen.spring.query.executor;
 
-import lombok.extern.slf4j.Slf4j;
-import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.spring.BasePersistenceOperations;
-import net.binis.codegen.spring.query.QueryExecute;
-import net.binis.codegen.spring.query.QueryFunctions;
-import net.binis.codegen.spring.query.QueryOrderOperation;
-import net.binis.codegen.spring.query.QuerySelectOperation;
+import net.binis.codegen.spring.query.*;
 
-import javax.persistence.NoResultException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-
-import static java.util.Objects.nonNull;
 
 public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>> {
 
     private final StringBuilder query = new StringBuilder();
     private final List<Object> params = new ArrayList<>();
-    private ResultType resultType = ResultType.UNKNOWN;
+    private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
     private final Class<?> returnClass;
     private Class<?> mapClass;
     private Long first;
@@ -34,26 +27,20 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     public void identifier(String id, Object value) {
-        params.add(value);
         if (query.charAt(query.length() - 1) != '.') {
             query.append(" (");
-        } else {
-            var pos = id.indexOf(".");
-            if (pos > -1 && query.substring(this.query.length() - pos - 1).equals(id.substring(0, pos + 1))) {
-                id = id.substring(pos + 1);
-            }
         }
-        query.append(id).append(" = ?").append(params.size()).append(")");
+        if (Objects.isNull(value)) {
+            query.append(id).append(" is null)");
+        } else {
+            params.add(value);
+            query.append(id).append(" = ?").append(params.size()).append(")");
+        }
     }
 
     public void identifier(String id) {
         if (query.charAt(query.length() - 1) != '.') {
             query.append(" (");
-        } else {
-            var pos = id.indexOf(".");
-            if (pos > -1 && query.substring(this.query.length() - pos - 1).equals(id.substring(0, pos + 1))) {
-                id = id.substring(pos + 1);
-            }
         }
         query.append(id);
     }
@@ -108,19 +95,19 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     public S by() {
-        resultType = ResultType.SINGLE;
+        resultType = QueryProcessor.ResultType.SINGLE;
         return (S) this;
     }
 
     public long count() {
-        resultType = ResultType.COUNT;
+        resultType = QueryProcessor.ResultType.COUNT;
         query.insert(0, "select count(*) ");
         return (long) execute();
     }
 
     @Override
     public Optional<R> top() {
-        resultType = ResultType.SINGLE;
+        resultType = QueryProcessor.ResultType.SINGLE;
         pageSize = 1L;
         return (Optional) execute();
     }
@@ -144,7 +131,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     public List<R> top(long records) {
         pageSize = records;
-        resultType = ResultType.LIST;
+        resultType = QueryProcessor.ResultType.LIST;
         return (List) execute();
     }
 
@@ -166,7 +153,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     @Override
     public long remove() {
-        resultType = ResultType.REMOVE;
+        resultType = QueryProcessor.ResultType.REMOVE;
         return (long) execute();
     }
 
@@ -187,38 +174,8 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 //        ResourceProjection rp = pf.createProjection(ResourceProjection.class, resourceEntity)
         stripLast(",");
         stripLast("where");
-        System.out.println(query.toString());
-        return withRes(manager -> {
-            var map = ResultType.COUNT.equals(resultType) ? Long.class : mapClass;
-            var q = isNative ? manager.createNativeQuery(query.toString(), map)
-                    : manager.createQuery(query.toString(), map);
-            for (int i = 0; i < params.size(); i++) {
-                q.setParameter(i + 1, params.get(i));
-            }
-
-            if (nonNull(first)) {
-                q.setFirstResult(first.intValue());
-            }
-
-            if (nonNull(pageSize)) {
-                q.setMaxResults(pageSize.intValue());
-            }
-
-            switch (resultType) {
-                case SINGLE:
-                    try {
-                        return (R) Optional.of(q.getSingleResult());
-                    } catch (NoResultException ex) {
-                        return (R) Optional.empty();
-                    }
-                case COUNT:
-                    return (R) q.getSingleResult();
-                case LIST:
-                    return (R) q.getResultList();
-                default:
-                    throw new GenericCodeGenException("Unknown query return type!");
-            }
-        });
+        return withRes(manager ->
+            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, first, pageSize));
     }
 
     @Override
@@ -240,7 +197,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     @Override
     public List<R> list() {
-        resultType = ResultType.LIST;
+        resultType = QueryProcessor.ResultType.LIST;
         return (List) execute();
     }
 
@@ -336,14 +293,6 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         stripLast(".");
         operation("<=", value);
         return this;
-    }
-
-    private enum ResultType {
-        UNKNOWN,
-        SINGLE,
-        LIST,
-        COUNT,
-        REMOVE;
     }
 
 }
