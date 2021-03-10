@@ -152,9 +152,10 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     @Override
-    public long remove() {
+    public int remove() {
         resultType = QueryProcessor.ResultType.REMOVE;
-        return (long) execute();
+        query.insert(0, "delete ");
+        return (int) execute();
     }
 
     @Override

@@ -16,6 +16,6 @@ public interface QueryExecute<R> {
     <V> List<V> top(long records, Class<V> cls);
     boolean exists();
     void delete();
-    long remove();
+    int remove();
 
 }

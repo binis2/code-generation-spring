@@ -69,6 +69,8 @@ public class QueryProcessor {
                 } else {
                     return q.getResultList();
                 }
+            case REMOVE:
+                return q.executeUpdate();
             default:
                 throw new GenericCodeGenException("Unknown query return type!");
         }

@@ -69,7 +69,7 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     }
 
     @Override
-    public long remove() {
+    public int remove() {
         return executor.remove();
     }
 
