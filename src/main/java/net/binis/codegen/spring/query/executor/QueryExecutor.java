@@ -2,11 +2,13 @@ package net.binis.codegen.spring.query.executor;
 
 import net.binis.codegen.spring.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import javax.persistence.FlushModeType;
+import javax.persistence.LockModeType;
+import java.util.*;
 
 public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>> {
 
@@ -15,10 +17,14 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
     private final Class<?> returnClass;
     private Class<?> mapClass;
-    private Long first;
-    private Long pageSize;
+    private Pageable pageable;
     private boolean isNative;
     protected O order;
+    private boolean enveloped;
+
+    private FlushModeType flushMode;
+    private LockModeType lockMode;
+    private Map<String, Object> hints;
 
     public QueryExecutor(Class<?> returnClass) {
         this.returnClass = returnClass;
@@ -27,29 +33,42 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     public void identifier(String id, Object value) {
-        if (query.charAt(query.length() - 1) != '.') {
+        if (query.charAt(query.length() - 1) != '.' && !enveloped) {
             query.append(" (");
         }
         if (Objects.isNull(value)) {
             query.append(id).append(" is null)");
         } else {
             params.add(value);
-            query.append(id).append(" = ?").append(params.size()).append(")");
+            query.append(id);
+            if (enveloped) {
+                enveloped = false;
+                query.append(")");
+            }
+            query.append(" = ?").append(params.size()).append(")");
         }
     }
 
     public void identifier(String id) {
-        if (query.charAt(query.length() - 1) != '.') {
+        if (query.charAt(query.length() - 1) != '.' && !enveloped) {
             query.append(" (");
         }
         query.append(id);
+        if (enveloped) {
+            query.append(")");
+            enveloped = false;
+        }
+
     }
 
     public void embedded(String id) {
         if (query.charAt(query.length() - 1) == '.') {
             query.append(id).append(".");
         } else {
-            query.append(" (").append(id).append(".");
+            if (!enveloped) {
+                query.append(" (");
+            }
+            query.append(id).append(".");
         }
     }
 
@@ -57,8 +76,25 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         query.append(" not ");
     }
 
+    public void doLower() {
+        envelop("lower");
+    }
+
+    public void doUpper() {
+        envelop("upper");
+    }
+
+    private void envelop(String func) {
+        enveloped = true;
+        query.append(" (").append(func).append("(");
+    }
+
     public void operation(String op, Object value) {
         params.add(value);
+        if (enveloped) {
+            query.append(")");
+            enveloped = false;
+        }
         query.append(" ").append(op).append(" ?").append(params.size()).append(")");
     }
 
@@ -108,7 +144,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     @Override
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
-        pageSize = 1L;
+        pageable = PageRequest.of(0, 1);
         return (Optional) execute();
     }
 
@@ -130,7 +166,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     public List<R> top(long records) {
-        pageSize = records;
+        pageable = PageRequest.of(0, (int) records);
         resultType = QueryProcessor.ResultType.LIST;
         return (List) execute();
     }
@@ -139,6 +175,40 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public <V> List<V> top(long records, Class<V> cls) {
         mapClass = cls;
         return (List) top(records);
+    }
+
+    @Override
+    public Page<R> page(Pageable pageable) {
+        resultType = QueryProcessor.ResultType.PAGE;
+        this.pageable = pageable;
+        return (Page) execute();
+    }
+
+    @Override
+    public <V> Page<V> page(Pageable pageable, Class<V> cls) {
+        mapClass = cls;
+        return (Page) page(pageable);
+    }
+
+    @Override
+    public QueryExecute<R> flush(FlushModeType type) {
+        flushMode = type;
+        return this;
+    }
+
+    @Override
+    public QueryExecute<R> lock(LockModeType type) {
+        lockMode = type;
+        return null;
+    }
+
+    @Override
+    public QueryExecute<R> hint(String hint, Object value) {
+        if (Objects.isNull(hints)) {
+            hints = new LinkedHashMap<>();
+        }
+        hints.put(hint, value);
+        return this;
     }
 
     @Override
@@ -171,12 +241,10 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     public Object execute() {
-//        ProjectionFactory pf = new SpelAwareProxyProjectionFactory();
-//        ResourceProjection rp = pf.createProjection(ResourceProjection.class, resourceEntity)
         stripLast(",");
         stripLast("where");
         return withRes(manager ->
-            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, first, pageSize));
+            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, pageable, flushMode, lockMode, hints));
     }
 
     @Override

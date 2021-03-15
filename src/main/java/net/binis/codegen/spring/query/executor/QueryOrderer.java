@@ -1,7 +1,11 @@
 package net.binis.codegen.spring.query.executor;
 
 import net.binis.codegen.spring.query.QueryExecute;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
+import javax.persistence.FlushModeType;
+import javax.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,6 +60,31 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     @Override
     public <V> List<V> top(long records, Class<V> cls) {
         return executor.top(records, cls);
+    }
+
+    @Override
+    public Page<R> page(Pageable pageable) {
+        return executor.page(pageable);
+    }
+
+    @Override
+    public <V> Page<V> page(Pageable pageable, Class<V> cls) {
+        return executor.page(pageable, cls);
+    }
+
+    @Override
+    public QueryExecute<R> flush(FlushModeType type) {
+        return executor.flush(type);
+    }
+
+    @Override
+    public QueryExecute<R> lock(LockModeType type) {
+        return executor.lock(type);
+    }
+
+    @Override
+    public QueryExecute<R> hint(String hint, Object value) {
+        return executor.hint(hint, value);
     }
 
     @Override
