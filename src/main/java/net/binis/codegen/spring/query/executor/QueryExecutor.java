@@ -1,7 +1,9 @@
 package net.binis.codegen.spring.query.executor;
 
+import lombok.SneakyThrows;
 import net.binis.codegen.spring.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
+import net.binis.codegen.tools.Reflection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -308,6 +310,11 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public <V> List<V> list(Class<V> cls) {
         mapClass = cls;
         return (List) list();
+    }
+
+    @Override
+    public R ensure() {
+        return get().orElseGet(() -> (R) Reflection.instantiate(returnClass));
     }
 
     @Override

@@ -18,6 +18,11 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     }
 
     @Override
+    public R ensure() {
+        return executor.ensure();
+    }
+
+    @Override
     public Optional<R> get() {
         return executor.get();
     }

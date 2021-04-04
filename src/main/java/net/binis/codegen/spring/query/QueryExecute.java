@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface QueryExecute<R> {
 
+    R ensure();
     Optional<R> get();
     <V> Optional<V> get(Class<V> cls);
     List<R> list();
