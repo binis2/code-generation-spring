@@ -86,7 +86,7 @@ public class QueryProcessor {
                     return q.getResultList();
                 }
             case PAGE:
-                if (nonNull(mapClass) && mapClass.isInterface()) {
+                if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
                     return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, 0);
                 } else {
                     return new PageImpl(q.getResultList(), pageable, 0);

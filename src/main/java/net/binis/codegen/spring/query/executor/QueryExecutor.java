@@ -10,6 +10,8 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import java.util.*;
 
+import static java.util.Objects.nonNull;
+
 public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>> {
 
     private final StringBuilder query = new StringBuilder();
@@ -20,7 +22,8 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     private Pageable pageable;
     private boolean isNative;
     protected O order;
-    private boolean enveloped;
+    private String enveloped = null;
+    private Runnable onEnvelop = null;
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -33,7 +36,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     public void identifier(String id, Object value) {
-        if (query.charAt(query.length() - 1) != '.' && !enveloped) {
+        if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
             query.append(" (");
         }
         if (Objects.isNull(value)) {
@@ -41,59 +44,113 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         } else {
             params.add(value);
             query.append(id);
-            if (enveloped) {
-                enveloped = false;
-                query.append(")");
+            if (nonNull(enveloped)) {
+                if (nonNull(onEnvelop)) {
+                    onEnvelop.run();
+                    onEnvelop = null;
+                } else {
+                    query.append(enveloped);
+                }
+                enveloped = null;
             }
             query.append(" = ?").append(params.size()).append(")");
         }
     }
 
     public void identifier(String id) {
-        if (query.charAt(query.length() - 1) != '.' && !enveloped) {
+        if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
             query.append(" (");
         }
         query.append(id);
-        if (enveloped) {
-            query.append(")");
-            enveloped = false;
+        if (nonNull(enveloped)) {
+            if (nonNull(onEnvelop)) {
+                onEnvelop.run();
+                onEnvelop = null;
+            } else {
+                query.append(enveloped);
+            }
+            enveloped = null;
         }
-
     }
 
     public void embedded(String id) {
         if (query.charAt(query.length() - 1) == '.') {
             query.append(id).append(".");
         } else {
-            if (!enveloped) {
+            if (Objects.isNull(enveloped)) {
                 query.append(" (");
             }
             query.append(id).append(".");
         }
     }
 
-    public void doNot() {
+    protected void doNot() {
         query.append(" not ");
     }
 
-    public void doLower() {
+    protected void doLower() {
         envelop("lower");
     }
 
-    public void doUpper() {
+    protected void doUpper() {
         envelop("upper");
     }
 
+    protected void doTrim() {
+        envelop("trim");
+    }
+
+    protected void doSubstring(int start) {
+        envelop("substr", start);
+    }
+
+    public void doSubstring(int start, int len) {
+        envelop("substr", start, len);
+    }
+
+    protected void doLen() {
+        envelop("length");
+    }
+
+    protected void doReplace(String what, String withWhat) {
+        envelop("replace", what, withWhat);
+    }
+
     private void envelop(String func) {
-        enveloped = true;
+        enveloped = ")";
         query.append(" (").append(func).append("(");
+    }
+
+    private void envelop(String func, Object... params) {
+        if (params.length == 0) {
+            envelop(func);
+        } else {
+            var s = new StringBuilder();
+            for (Object param : params) {
+                this.params.add(param);
+                s.append(", ?").append(this.params.size());
+            }
+            enveloped = s.append(")").toString();
+
+            query.append(" (").append(func).append("(");
+        }
+    }
+
+    private void envelop(String func, Runnable onEnvelop, Object... params) {
+        this.onEnvelop = onEnvelop;
+        envelop(func, params);
     }
 
     public void operation(String op, Object value) {
         params.add(value);
-        if (enveloped) {
-            query.append(")");
-            enveloped = false;
+        if (nonNull(enveloped)) {
+            if (nonNull(onEnvelop)) {
+                onEnvelop.run();
+                onEnvelop = null;
+            } else {
+                query.append(enveloped);
+            }
+            enveloped = null;
         }
         query.append(" ").append(op).append(" ?").append(params.size()).append(")");
     }
@@ -295,7 +352,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     @Override
-    public QuerySelectOperation<S, O, R> in(List<T> values) {
+    public QuerySelectOperation<S, O, R> in(Collection<T> values) {
         stripLast(".");
         operation("in", values);
         return this;
