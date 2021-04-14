@@ -1,9 +1,8 @@
 package net.binis.codegen.spring.query.executor;
 
-import lombok.SneakyThrows;
+import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.spring.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
-import net.binis.codegen.tools.Reflection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -110,12 +109,13 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         envelop("substr", start, len);
     }
 
-    protected void doLen() {
-        envelop("length");
-    }
-
     protected void doReplace(String what, String withWhat) {
         envelop("replace", what, withWhat);
+    }
+
+    private void backEnvelop(String func) {
+        var idx = query.lastIndexOf("(");
+        query.insert(idx, "(" + func).append(")");
     }
 
     private void envelop(String func) {
@@ -314,7 +314,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     @Override
     public R ensure() {
-        return get().orElseGet(() -> (R) Reflection.instantiate(returnClass));
+        return get().orElseGet(() -> (R) EntityCreator.create(returnClass));
     }
 
     @Override
@@ -341,6 +341,12 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         if (idx > -1 && idx == qlen - wlen) {
             query.setLength(qlen - wlen);
         }
+    }
+
+    @Override
+    public QueryFunctions<Long, QuerySelectOperation<S, O, R>> length() {
+        backEnvelop("length");
+        return (QueryFunctions) this;
     }
 
     @Override

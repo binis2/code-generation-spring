@@ -5,6 +5,7 @@ import java.util.List;
 
 public interface QueryFunctions<T, R> {
 
+    QueryFunctions<Long, R> length();
     R equal(T value);
     R between(T from, T to);
     R in(Collection<T> values);
