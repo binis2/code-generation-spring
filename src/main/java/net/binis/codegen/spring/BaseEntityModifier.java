@@ -45,6 +45,12 @@ public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> imple
         return parent;
     }
 
+    @Final
+    public R refresh() {
+        with(manager -> manager.refresh(parent));
+        return parent;
+    }
+
     @Override
     public void setObject(R parent) {
         this.parent = parent;
