@@ -1,6 +1,7 @@
 package net.binis.codegen.spring.query;
 
 import net.binis.codegen.exception.GenericCodeGenException;
+import net.binis.codegen.factory.CodeFactory;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.projection.ProjectionFactory;
@@ -45,7 +46,7 @@ public class QueryProcessor {
 
     private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
         var map = ResultType.COUNT.equals(resultType) ? Long.class : returnClass;
-        var q = isNative ? manager.createNativeQuery(query, map)
+    var q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
                 : manager.createQuery(query, map);
         for (int i = 0; i < params.size(); i++) {
             q.setParameter(i + 1, params.get(i));
@@ -96,6 +97,19 @@ public class QueryProcessor {
             default:
                 throw new GenericCodeGenException("Unknown query return type!");
         }
+    }
+
+    private static Class<?> nativeQueryClass(Class<?> map) {
+        var result = map;
+        if (map.isInterface()) {
+            var impl = CodeFactory.lookup(map);
+            if (nonNull(impl)) {
+                result = impl;
+            }
+        }
+        //TODO: Handle unregistered classes.
+
+        return result;
     }
 
     private static Object map(Class<?> mapClass, Object result) {
