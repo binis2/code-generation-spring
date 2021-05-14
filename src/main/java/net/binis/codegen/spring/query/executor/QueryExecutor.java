@@ -13,7 +13,7 @@ import java.util.*;
 
 import static java.util.Objects.nonNull;
 
-public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>> {
+public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R> {
 
     private final StringBuilder query = new StringBuilder();
     private final List<Object> params = new ArrayList<>();
@@ -213,15 +213,15 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         return (Optional) top();
     }
 
-    public <QR> QueryExecute<QR> nativeQuery(String query) {
+    public <QR> QueryParam<QR> nativeQuery(String query) {
         isNative = true;
         return query(query);
     }
 
-    public <QR> QueryExecute<QR> query(String query) {
+    public <QR> QueryParam<QR> query(String query) {
         this.query.setLength(0);
         this.query.append(query);
-        return (QueryExecute) this;
+        return (QueryParam) this;
     }
 
     public List<R> top(long records) {
@@ -431,6 +431,18 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public QuerySelectOperation<S, O, R> lessEqual(T value) {
         stripLast(".");
         operation("<=", value);
+        return this;
+    }
+
+    @Override
+    public QueryParam<R> params(Collection<Object> params) {
+        this.params.addAll(params);
+        return this;
+    }
+
+    @Override
+    public QueryParam<R> param(Object param) {
+        this.params.add(param);
         return this;
     }
 
