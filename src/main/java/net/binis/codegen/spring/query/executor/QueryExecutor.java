@@ -22,6 +22,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     private Class<?> mapClass;
     private Pageable pageable;
     private boolean isNative;
+    private boolean isModifying;
     protected O order;
     private String enveloped = null;
     private Runnable onEnvelop = null;
@@ -282,6 +283,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
 
     @Override
     public int remove() {
+        isModifying = true;
         resultType = QueryProcessor.ResultType.REMOVE;
         query.insert(0, "delete ");
         return (int) execute();
@@ -303,7 +305,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         stripLast(",");
         stripLast("where");
         return withRes(manager ->
-            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, pageable, flushMode, lockMode, hints));
+            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints));
     }
 
     @Override
@@ -444,6 +446,13 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public QueryParam<R> param(Object param) {
         this.params.add(param);
         return this;
+    }
+
+    @Override
+    public int run() {
+        isModifying = true;
+        resultType = QueryProcessor.ResultType.EXECUTE;
+        return (int) execute();
     }
 
 }

@@ -1,5 +1,6 @@
 package net.binis.codegen.spring.query;
 
+import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
 import org.springframework.data.domain.PageImpl;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 
+@Slf4j
 public class QueryProcessor {
 
     private static Processor processor = defaultProcessor();
@@ -36,15 +38,25 @@ public class QueryProcessor {
         return QueryProcessor::nullProcess;
     }
 
+    public static Processor logProcessor() {
+        var p = processor;
+        return (EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) -> {
+            log.info(query);
+            return p.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints);
+        };
+    }
+
+
     public static void setProcessor(Processor processor) {
         QueryProcessor.processor = processor;
     }
 
-    public static <R> R process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, Pageable pageble, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
-        return (R) processor.process(manager, query, params, resultType, returnClass, mapClass, isNative, pageble, flush, lock, hints);
+    @SuppressWarnings("unchecked")
+    public static <R> R process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
+        return (R) processor.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints);
     }
 
-    private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
+    private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
         var map = ResultType.COUNT.equals(resultType) ? Long.class : returnClass;
     var q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
                 : manager.createQuery(query, map);
@@ -93,6 +105,7 @@ public class QueryProcessor {
                     return new PageImpl(q.getResultList(), pageable, 0);
                 }
             case REMOVE:
+            case EXECUTE:
                 return q.executeUpdate();
             default:
                 throw new GenericCodeGenException("Unknown query return type!");
@@ -119,7 +132,7 @@ public class QueryProcessor {
         return result;
     }
 
-    private static Object nullProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
+    private static Object nullProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
         return null;
     }
 
@@ -129,12 +142,13 @@ public class QueryProcessor {
         LIST,
         PAGE,
         COUNT,
-        REMOVE;
+        REMOVE,
+        EXECUTE
     }
 
     @FunctionalInterface
     public interface Processor {
-        Object process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints);
+        Object process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints);
     }
 
 }
