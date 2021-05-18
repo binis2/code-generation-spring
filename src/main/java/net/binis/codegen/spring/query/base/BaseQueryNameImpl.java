@@ -1,8 +1,9 @@
 package net.binis.codegen.spring.query.base;
 
+import net.binis.codegen.spring.query.QueryScript;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
 
-public class BaseQueryNameImpl {
+public class BaseQueryNameImpl<T> implements QueryScript<T> {
 
     protected QueryExecutor executor;
 
@@ -12,6 +13,11 @@ public class BaseQueryNameImpl {
         this.name = name;
         this.executor = (QueryExecutor) executor;
         this.executor.embedded(name);
+    }
+
+    @Override
+    public T script(String script) {
+        return (T) ((QueryScript) executor).script(script);
     }
 
 }

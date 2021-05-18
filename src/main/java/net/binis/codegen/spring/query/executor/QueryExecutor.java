@@ -26,6 +26,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     protected O order;
     private String enveloped = null;
     private Runnable onEnvelop = null;
+    private boolean brackets;
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -37,9 +38,10 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         query.append("from ").append(returnClass.getName()).append(" u where");
     }
 
-    public void identifier(String id, Object value) {
+    public QueryExecutor<T, S, O, R> identifier(String id, Object value) {
         if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
             query.append(" (");
+            brackets = true;
         }
         if (Objects.isNull(value)) {
             query.append(id).append(" is null)");
@@ -57,11 +59,14 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
             }
             query.append(" = ?").append(params.size()).append(")");
         }
+
+        return this;
     }
 
-    public void identifier(String id) {
+    public QueryExecutor<T, S, O, R> identifier(String id) {
         if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
             query.append(" (");
+            brackets = true;
         }
         query.append(id);
         if (nonNull(enveloped)) {
@@ -73,6 +78,8 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
             }
             enveloped = null;
         }
+
+        return this;
     }
 
     public void embedded(String id) {
@@ -156,6 +163,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
             enveloped = null;
         }
         query.append(" ").append(op).append(" ?").append(params.size()).append(")");
+        brackets = false;
     }
 
     public void collection(String id, Object value) {
@@ -163,13 +171,26 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         query.append(" (?").append(params.size()).append(" member of ").append(id).append(")");
     }
 
-    protected void orderIdentifier(String id) {
+    protected QueryExecutor<T, S, O, R> orderIdentifier(String id) {
         query.append(" ").append(id);
+        return this;
     }
 
     protected void orderStart() {
         stripLast("where");
         query.append(" order by ");
+    }
+
+    public QuerySelectOperation<S, O, R> script(String script) {
+        query.append(" ").append(script);
+
+        if (brackets) {
+            query.append(")");
+            brackets = false;
+        }
+
+        query.append(" ");
+        return this;
     }
 
     @Override

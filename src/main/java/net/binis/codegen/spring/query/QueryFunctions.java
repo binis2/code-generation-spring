@@ -18,5 +18,6 @@ public interface QueryFunctions<T, R> {
     R greaterEqual(T value);
     R less(T value);
     R lessEqual(T value);
+    R script(String script);
 
 }
