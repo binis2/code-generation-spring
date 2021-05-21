@@ -100,9 +100,9 @@ public class QueryProcessor {
                 }
             case PAGE:
                 if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
-                    return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, 0);
+                    return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
                 } else {
-                    return new PageImpl(q.getResultList(), pageable, 0);
+                    return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
                 }
             case REMOVE:
             case EXECUTE:
