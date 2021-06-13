@@ -1,11 +1,15 @@
 package net.binis.codegen.spring.query;
 
-public interface QueryStarter<R, Q> {
+import java.util.function.Consumer;
 
-    Q by();
+public interface QueryStarter<R, S> {
+
+    S by();
 
     QueryParam<R> nativeQuery(String query);
 
     QueryParam<R> query(String query);
+
+    void transaction(Consumer<QueryStarter<R, S>> consumer);
 
 }

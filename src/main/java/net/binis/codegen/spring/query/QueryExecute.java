@@ -7,6 +7,7 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public interface QueryExecute<R> {
 
@@ -22,6 +23,10 @@ public interface QueryExecute<R> {
     <V> List<V> top(long records, Class<V> cls);
     Page<R> page(Pageable pageable);
     <V> Page<V> page(Pageable pageable, Class<V> cls);
+    Page<R> page(long pageSize);
+    <V> Page<V> page(long pageSize, Class<V> cls);
+    void paginated(long pageSize, Consumer<R> consumer);
+    void paginated(Pageable pageable, Consumer<R> consumer);
 
     QueryExecute<R> flush(FlushModeType type);
     QueryExecute<R> lock(LockModeType type);

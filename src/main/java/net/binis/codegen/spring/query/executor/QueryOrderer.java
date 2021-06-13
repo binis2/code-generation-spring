@@ -8,6 +8,7 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public class QueryOrderer<R> implements QueryExecute<R> {
 
@@ -75,6 +76,26 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     @Override
     public <V> Page<V> page(Pageable pageable, Class<V> cls) {
         return executor.page(pageable, cls);
+    }
+
+    @Override
+    public Page<R> page(long pageSize) {
+        return executor.page(pageSize);
+    }
+
+    @Override
+    public <V> Page<V> page(long pageSize, Class<V> cls) {
+        return executor.page(pageSize, cls);
+    }
+
+    @Override
+    public void paginated(long pageSize, Consumer<R> consumer) {
+        executor.paginated(pageSize, consumer);
+    }
+
+    @Override
+    public void paginated(Pageable pageable, Consumer<R> consumer) {
+        executor.paginated(pageable, consumer);
     }
 
     @Override

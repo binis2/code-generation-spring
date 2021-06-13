@@ -2,19 +2,11 @@ package net.binis.codegen.spring;
 
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.annotation.Final;
+import net.binis.codegen.modifier.Modifiable;
 import net.binis.codegen.modifier.Modifier;
-import net.binis.codegen.spring.component.ApplicationContextProvider;
-import org.springframework.orm.jpa.EntityManagerFactoryUtils;
-import org.springframework.orm.jpa.JpaTransactionManager;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import java.util.function.Consumer;
 import java.util.function.Function;
-
-import static java.util.Objects.isNull;
 
 @Slf4j
 public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> implements Modifier<R> {
@@ -50,6 +42,12 @@ public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> imple
         with(manager -> manager.refresh(parent));
         return parent;
     }
+
+    @Final(imports = {"java.util.function.Function"}, description = "Function<{R}, {T}> function")
+    public R transaction(Function<T, R> function) {
+        return withRes(manager -> function.apply((T)((Modifiable) manager.merge(parent)).with()));
+    }
+
 
     @Override
     public void setObject(R parent) {

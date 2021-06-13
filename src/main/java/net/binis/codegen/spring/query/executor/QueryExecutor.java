@@ -10,10 +10,11 @@ import org.springframework.data.domain.Pageable;
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import java.util.*;
+import java.util.function.Consumer;
 
 import static java.util.Objects.nonNull;
 
-public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R> {
+public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S> {
 
     private final StringBuilder query = new StringBuilder();
     private final List<Object> params = new ArrayList<>();
@@ -235,15 +236,20 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         return (Optional) top();
     }
 
-    public <QR> QueryParam<QR> nativeQuery(String query) {
+    public QueryParam<R> nativeQuery(String query) {
         isNative = true;
         return query(query);
     }
 
-    public <QR> QueryParam<QR> query(String query) {
+    public QueryParam<R> query(String query) {
         this.query.setLength(0);
         this.query.append(query);
-        return (QueryParam) this;
+        return this;
+    }
+
+    @Override
+    public void transaction(Consumer<QueryStarter<R, S>> consumer) {
+        with(manager -> consumer.accept(this));
     }
 
     public List<R> top(long records) {
@@ -269,6 +275,31 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public <V> Page<V> page(Pageable pageable, Class<V> cls) {
         mapClass = cls;
         return (Page) page(pageable);
+    }
+
+    @Override
+    public Page<R> page(long pageSize) {
+        return page(PageRequest.of(0, (int) pageSize));
+    }
+
+    @Override
+    public <V> Page<V> page(long pageSize, Class<V> cls) {
+        mapClass = cls;
+        return (Page) page(PageRequest.of(0, (int) pageSize));
+    }
+
+    @Override
+    public void paginated(long pageSize, Consumer<R> consumer) {
+        paginated(PageRequest.of(0, (int) pageSize), consumer);
+    }
+
+    @Override
+    public void paginated(Pageable pageable, Consumer<R> consumer) {
+        var page = page(pageable);
+        while(!page.isEmpty()) {
+            page.getContent().forEach(consumer);
+            page = page(pageable.next());
+        }
     }
 
     @Override
