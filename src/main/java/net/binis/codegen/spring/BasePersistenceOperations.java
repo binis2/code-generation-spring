@@ -23,6 +23,12 @@ public class BasePersistenceOperations<R> {
     private static EntityManagerFactory factory;
     private static TransactionTemplate template;
 
+    private static Function<EntityManagerFactory, EntityManager> entityManagerProvider = defaultEntityManagerProvider();
+
+    public static void setEntityManagerProvider(Function<EntityManagerFactory, EntityManager> provider) {
+        entityManagerProvider = provider;
+    }
+
     private static void init() {
         if (isNull(factory)) {
             var context = ApplicationContextProvider.getApplicationContext();
@@ -37,11 +43,11 @@ public class BasePersistenceOperations<R> {
 
     protected void with(Consumer<EntityManager> func) {
         init();
-        var em = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
+        var em = entityManagerProvider.apply(factory);
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
             log.debug("Attempt to do action outside of open transaction!");
             template.execute(s -> {
-                var manager = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
+                var manager = entityManagerProvider.apply(factory);
                 func.accept(manager);
                 return null;
             });
@@ -52,14 +58,18 @@ public class BasePersistenceOperations<R> {
 
     protected R withRes(Function<EntityManager, R> func) {
         init();
-        var em = EntityManagerFactoryUtils.getTransactionalEntityManager(factory);
+        var em = entityManagerProvider.apply(factory);
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
             log.debug("Attempt to do action outside of open transaction!");
             return template.execute(s ->
-                func.apply(EntityManagerFactoryUtils.getTransactionalEntityManager(factory)));
+                func.apply(entityManagerProvider.apply(factory)));
         } else {
             return func.apply(em);
         }
+    }
+
+    private static Function<EntityManagerFactory, EntityManager> defaultEntityManagerProvider() {
+        return EntityManagerFactoryUtils::getTransactionalEntityManager;
     }
 
 }

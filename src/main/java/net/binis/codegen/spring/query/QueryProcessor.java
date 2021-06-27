@@ -46,6 +46,9 @@ public class QueryProcessor {
         };
     }
 
+    public static Processor getProcessor() {
+        return processor;
+    }
 
     public static void setProcessor(Processor processor) {
         QueryProcessor.processor = processor;

@@ -298,7 +298,10 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         var page = page(pageable);
         while(!page.isEmpty()) {
             page.getContent().forEach(consumer);
-            page = page(pageable.next());
+            if (page.getContent().size() < pageable.getPageSize()) {
+                break;
+            }
+            page = page(page.nextPageable());
         }
     }
 
