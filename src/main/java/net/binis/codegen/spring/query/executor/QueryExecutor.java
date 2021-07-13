@@ -6,15 +6,17 @@ import net.binis.codegen.spring.query.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.util.Pair;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static java.util.Objects.nonNull;
 
-public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryExecute<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S> {
+public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S>, QueryCondition<S, O, R> {
 
     private final StringBuilder query = new StringBuilder();
     private final List<Object> params = new ArrayList<>();
@@ -28,10 +30,13 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     private String enveloped = null;
     private Runnable onEnvelop = null;
     private boolean brackets;
+    private boolean condition;
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
     private Map<String, Object> hints;
+    private Map<String, Map<String, Object>> filters;
+    private Map<String, Object> filter;
 
     public QueryExecutor(Class<?> returnClass) {
         this.returnClass = returnClass;
@@ -212,9 +217,38 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         return order;
     }
 
+    @Override
+    public QueryCondition<S, O, R> _if(boolean condition, Consumer<QuerySelectOperation<S, O, R>> query) {
+        this.condition = condition;
+        if (condition) {
+            query.accept(this);
+        }
+        return this;
+    }
+
     public S by() {
         resultType = QueryProcessor.ResultType.SINGLE;
         return (S) this;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <Q> Q by(boolean condition, Function<S, Q> query) {
+        if (condition) {
+            query.apply((S) this);
+        }
+        return (Q) this;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <Q> Q by(boolean condition, Function<S, Q> query, Function<S, Q> elseQuery) {
+        if (condition) {
+            query.apply((S) this);
+        } else {
+            elseQuery.apply((S) this);
+        }
+        return (Q) this;
     }
 
     public long count() {
@@ -327,6 +361,18 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     @Override
+    public QueryFilter<R> filter(String name) {
+        if (Objects.isNull(filters)) {
+            filters = new LinkedHashMap<>();
+        }
+
+        filter = new LinkedHashMap<>();
+        filters.put(name, filter);
+
+        return this;
+    }
+
+    @Override
     public boolean exists() {
         return count() > 0;
     }
@@ -360,7 +406,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         stripLast(",");
         stripLast("where");
         return withRes(manager ->
-            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints));
+            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
     @Override
@@ -510,4 +556,19 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         return (int) execute();
     }
 
+    @Override
+    public QuerySelectOperation<S, O, R> _else(Consumer<QuerySelectOperation<S, O, R>> query) {
+        if (!condition) {
+            query.accept(this);
+        }
+        return this;
+    }
+
+    @Override
+    public QueryFilter<R> parameter(String name, Object value) {
+        if (nonNull(filter)) {
+            filter.put(name, value);
+        }
+        return this;
+    }
 }

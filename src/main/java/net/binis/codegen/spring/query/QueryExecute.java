@@ -31,6 +31,7 @@ public interface QueryExecute<R> {
     QueryExecute<R> flush(FlushModeType type);
     QueryExecute<R> lock(LockModeType type);
     QueryExecute<R> hint(String hint, Object value);
+    QueryFilter<R> filter(String name);
 
     boolean exists();
     void delete();

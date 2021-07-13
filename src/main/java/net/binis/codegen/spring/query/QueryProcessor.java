@@ -3,6 +3,7 @@ package net.binis.codegen.spring.query;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
+import net.binis.codegen.tools.Reflection;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.projection.ProjectionFactory;
@@ -13,6 +14,8 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.NoResultException;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,11 +29,29 @@ public class QueryProcessor {
     private static Processor processor = defaultProcessor();
     private static final ProjectionFactory factory = new SpelAwareProxyProjectionFactory();
 
+    private static Class<?> sessionClass;
+    private static Method enableFilter;
+    private static Method parameter;
+
     private QueryProcessor() {
         //Do nothing
     }
 
+    private static void initFilters() {
+        sessionClass = Reflection.loadClass("org.hibernate.Session");
+        if (nonNull(sessionClass)) {
+            try {
+                enableFilter = sessionClass.getDeclaredMethod("enableFilter", String.class);
+                parameter = enableFilter.getReturnType().getDeclaredMethod("setParameter", String.class, Object.class);
+            } catch (Exception e) {
+                sessionClass = null;
+                log.info("org.hibernate.Session is not present!. Filtering disabled!");
+            }
+        }
+    }
+
     public static Processor defaultProcessor() {
+        initFilters();
         return QueryProcessor::defaultProcess;
     }
 
@@ -40,9 +61,9 @@ public class QueryProcessor {
 
     public static Processor logProcessor() {
         var p = processor;
-        return (EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) -> {
+        return (EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, Map<String, Map<String, Object>> filters) -> {
             log.info(query);
-            return p.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints);
+            return p.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
         };
     }
 
@@ -55,11 +76,11 @@ public class QueryProcessor {
     }
 
     @SuppressWarnings("unchecked")
-    public static <R> R process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
-        return (R) processor.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints);
+    public static <R> R process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, Map<String, Map<String, Object>> filters) {
+        return (R) processor.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
     }
 
-    private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
+    private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, Map<String, Map<String, Object>> filters) {
         var map = ResultType.COUNT.equals(resultType) ? Long.class : returnClass;
     var q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
                 : manager.createQuery(query, map);
@@ -83,6 +104,20 @@ public class QueryProcessor {
             q.setFirstResult((int) pageable.getOffset());
             if (pageable.getPageSize() > -1) {
                 q.setMaxResults(pageable.getPageSize());
+            }
+        }
+
+        if (nonNull(sessionClass) && nonNull(filters)) {
+            var session = manager.unwrap(sessionClass);
+            for (var filter : filters.entrySet()) {
+                try {
+                    var f = enableFilter.invoke(session, filter.getKey());
+                    for (var param : filter.getValue().entrySet()) {
+                        parameter.invoke(f, param.getKey(), param.getValue());
+                    }
+                } catch (Exception e) {
+                    log.error("Unable to set query filter ({})!", filter.getKey(), e);
+                }
             }
         }
 
@@ -135,7 +170,7 @@ public class QueryProcessor {
         return result;
     }
 
-    private static Object nullProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints) {
+    private static Object nullProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, Map<String, Map<String, Object>> filters) {
         return null;
     }
 
@@ -151,7 +186,7 @@ public class QueryProcessor {
 
     @FunctionalInterface
     public interface Processor {
-        Object process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints);
+        Object process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, Map<String, Map<String, Object>> filters);
     }
 
 }

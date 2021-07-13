@@ -1,6 +1,7 @@
 package net.binis.codegen.spring.query.executor;
 
 import net.binis.codegen.spring.query.QueryExecute;
+import net.binis.codegen.spring.query.QueryFilter;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -111,6 +112,11 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     @Override
     public QueryExecute<R> hint(String hint, Object value) {
         return executor.hint(hint, value);
+    }
+
+    @Override
+    public QueryFilter<R> filter(String name) {
+        return executor.filter(name);
     }
 
     @Override
