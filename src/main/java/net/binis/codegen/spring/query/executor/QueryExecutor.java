@@ -16,7 +16,7 @@ import java.util.function.Function;
 
 import static java.util.Objects.nonNull;
 
-public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryAggregateOperation {
+public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryCollectionFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryAggregateOperation {
 
     private final StringBuilder query = new StringBuilder();
     private StringBuilder select;
@@ -130,9 +130,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         envelop("replace", what, withWhat);
     }
 
-    private void backEnvelop(String func) {
+    private void backInsert(String func) {
         var idx = query.lastIndexOf("(");
-        query.insert(idx, "(" + func).append(")");
+        query.insert(idx + 1, func);
+    }
+
+    private void backEnvelop(String func) {
+        backInsert(func + "(");
+        query.append(")");
     }
 
     private void envelop(String func) {
@@ -173,11 +178,6 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         }
         query.append(" ").append(op).append(" ?").append(params.size()).append(")");
         brackets = false;
-    }
-
-    public void collection(String id, Object value) {
-        params.add(value);
-        query.append(" (?").append(params.size()).append(" member of ").append(id).append(")");
     }
 
     protected QueryExecutor<T, S, O, R, A> orderIdentifier(String id) {
@@ -522,6 +522,13 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
+    public QuerySelectOperation<S, O, R> isNotNull() {
+        stripLast(".");
+        query.append(" is not null)");
+        return this;
+    }
+
+    @Override
     public QuerySelectOperation<S, O, R> like(String value) {
         stripLast(".");
         operation("like", value);
@@ -659,6 +666,44 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             returnClass = Double.class;
             mapClass = Double.class;
         }
+    }
 
+    @Override
+    public QueryFunctions<Long, QuerySelectOperation<S, O, R>> size() {
+        backEnvelop("size");
+        return (QueryFunctions) this;
+    }
+
+    public void collection(String id, Object value) {
+        throw new IllegalCallerException();
+    }
+
+
+    @Override
+    public QuerySelectOperation<S, O, R> contains(T value) {
+        params.add(value);
+        backInsert("?" + params.size() + " member of ");
+        query.append(")");
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> notContains(T value) {
+        params.add(value);
+        backInsert("?" + params.size() + " not member of ");
+        query.append(")");
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> isEmpty() {
+        query.append(" is empty)");
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> isNotEmpty() {
+        query.append(" is not empty)");
+        return this;
     }
 }
