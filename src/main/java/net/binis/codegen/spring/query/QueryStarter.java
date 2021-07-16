@@ -3,9 +3,11 @@ package net.binis.codegen.spring.query;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface QueryStarter<R, S> {
+public interface QueryStarter<R, S, A> {
 
     S by();
+
+    A aggregate();
 
     <T> T by(boolean condition, Function<S, T> query);
 
@@ -15,6 +17,6 @@ public interface QueryStarter<R, S> {
 
     QueryParam<R> query(String query);
 
-    void transaction(Consumer<QueryStarter<R, S>> consumer);
+    void transaction(Consumer<QueryStarter<R, S, A>> consumer);
 
 }

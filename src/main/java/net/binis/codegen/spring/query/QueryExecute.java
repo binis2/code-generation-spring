@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
+import javax.persistence.Tuple;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -27,6 +28,8 @@ public interface QueryExecute<R> {
     <V> Page<V> page(long pageSize, Class<V> cls);
     void paginated(long pageSize, Consumer<R> consumer);
     void paginated(Pageable pageable, Consumer<R> consumer);
+    Optional<Tuple> tuple();
+    List<Tuple> tuples();
 
     QueryExecute<R> flush(FlushModeType type);
     QueryExecute<R> lock(LockModeType type);

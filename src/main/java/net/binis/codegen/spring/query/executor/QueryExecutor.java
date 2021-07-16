@@ -6,27 +6,30 @@ import net.binis.codegen.spring.query.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.util.Pair;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
+import javax.persistence.Tuple;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static java.util.Objects.nonNull;
 
-public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S>, QueryCondition<S, O, R> {
+public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryAggregateOperation {
 
     private final StringBuilder query = new StringBuilder();
+    private StringBuilder select;
+    private int fieldsCount = 0;
     private final List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
-    private final Class<?> returnClass;
+    private Class<?> returnClass;
     private Class<?> mapClass;
     private Pageable pageable;
     private boolean isNative;
     private boolean isModifying;
-    protected O order;
+    private O order;
+    private A aggregate;
     private String enveloped = null;
     private Runnable onEnvelop = null;
     private boolean brackets;
@@ -35,8 +38,8 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     private FlushModeType flushMode;
     private LockModeType lockMode;
     private Map<String, Object> hints;
-    private Map<String, Map<String, Object>> filters;
-    private Map<String, Object> filter;
+    private List<Filter> filters;
+    private Filter filter;
 
     public QueryExecutor(Class<?> returnClass) {
         this.returnClass = returnClass;
@@ -44,7 +47,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         query.append("from ").append(returnClass.getName()).append(" u where");
     }
 
-    public QueryExecutor<T, S, O, R> identifier(String id, Object value) {
+    public QueryExecutor<T, S, O, R, A> identifier(String id, Object value) {
         if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
             query.append(" (");
             brackets = true;
@@ -69,7 +72,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         return this;
     }
 
-    public QueryExecutor<T, S, O, R> identifier(String id) {
+    public QueryExecutor<T, S, O, R, A> identifier(String id) {
         if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
             query.append(" (");
             brackets = true;
@@ -177,14 +180,34 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
         query.append(" (?").append(params.size()).append(" member of ").append(id).append(")");
     }
 
-    protected QueryExecutor<T, S, O, R> orderIdentifier(String id) {
+    protected QueryExecutor<T, S, O, R, A> orderIdentifier(String id) {
         query.append(" ").append(id);
         return this;
     }
 
-    protected void orderStart() {
+    protected Object aggregateIdentifier(String id) {
+        if (fieldsCount == 0) {
+            resultType = QueryProcessor.ResultType.SINGLE;
+        } else {
+            resultType = QueryProcessor.ResultType.TUPLE;
+        }
+
+        fieldsCount++;
+        select.append(id).append("),");
+        return aggregate;
+    }
+
+    protected O orderStart(O order) {
+        this.order = order;
         stripLast("where");
         query.append(" order by ");
+        return order;
+    }
+
+    protected A aggregateStart(A aggregate) {
+        this.aggregate = aggregate;
+        select = new StringBuilder();
+        return aggregate;
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
@@ -209,12 +232,6 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public S or() {
         query.append(" or ");
         return (S) this;
-    }
-
-    @Override
-    public O order() {
-        orderStart();
-        return order;
     }
 
     @Override
@@ -282,7 +299,7 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     @Override
-    public void transaction(Consumer<QueryStarter<R, S>> consumer) {
+    public void transaction(Consumer<QueryStarter<R, S, A>> consumer) {
         with(manager -> consumer.accept(this));
     }
 
@@ -340,6 +357,19 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     @Override
+    public Optional<Tuple> tuple() {
+        resultType = QueryProcessor.ResultType.TUPLE;
+        return (Optional) execute();
+    }
+
+    @Override
+    public List<Tuple> tuples() {
+        resultType = QueryProcessor.ResultType.TUPLES;
+        return (List) execute();
+    }
+
+
+    @Override
     public QueryExecute<R> flush(FlushModeType type) {
         flushMode = type;
         return this;
@@ -363,11 +393,11 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     @Override
     public QueryFilter<R> filter(String name) {
         if (Objects.isNull(filters)) {
-            filters = new LinkedHashMap<>();
+            filters = new ArrayList<>();
         }
 
-        filter = new LinkedHashMap<>();
-        filters.put(name, filter);
+        filter = Filter.builder().name(name).values(new LinkedHashMap<>()).build();
+        filters.add(filter);
 
         return this;
     }
@@ -405,6 +435,11 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     public Object execute() {
         stripLast(",");
         stripLast("where");
+        if (nonNull(select)) {
+            stripLast(select, ",");
+            select.insert(0, "select ").append(" ");
+            query.insert(0, select);
+        }
         return withRes(manager ->
             QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
@@ -438,13 +473,18 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     }
 
     private void stripLast(String what) {
-        var qlen = query.length();
+        stripLast(query, what);
+    }
+
+    private void stripLast(StringBuilder builder, String what) {
+        var qlen = builder.length();
         var wlen = what.length();
-        var idx = query.lastIndexOf(what);
+        var idx = builder.lastIndexOf(what);
         if (idx > -1 && idx == qlen - wlen) {
-            query.setLength(qlen - wlen);
+            builder.setLength(qlen - wlen);
         }
     }
+
 
     @Override
     public QueryFunctions<Long, QuerySelectOperation<S, O, R>> length() {
@@ -567,8 +607,58 @@ public class QueryExecutor<T, S, O, R> extends BasePersistenceOperations<R> impl
     @Override
     public QueryFilter<R> parameter(String name, Object value) {
         if (nonNull(filter)) {
-            filter.put(name, value);
+            filter.getValues().put(name, value);
         }
         return this;
+    }
+
+    @Override
+    public QueryFilter<R> disable() {
+        if (nonNull(filter)) {
+            filter.setDisabled(true);
+        }
+        return this;
+    }
+
+    @Override
+    public Object sum() {
+        aggregateFunction("sum");
+        return aggregate;
+    }
+
+    @Override
+    public Object min() {
+        aggregateFunction("min");
+        return aggregate;
+    }
+
+    @Override
+    public Object max() {
+        aggregateFunction("max");
+        return aggregate;
+    }
+
+    @Override
+    public Object avg() {
+        aggregateFunction("avg");
+        return aggregate;
+    }
+
+    @Override
+    public Object cnt() {
+        aggregateFunction("count");
+        if (fieldsCount == 0) {
+            returnClass = Long.class;
+        }
+        return aggregate;
+    }
+
+    public void aggregateFunction(String sum) {
+        select.append(sum).append("(");
+        if (fieldsCount == 0) {
+            returnClass = Double.class;
+            mapClass = Double.class;
+        }
+
     }
 }

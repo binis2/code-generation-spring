@@ -1,22 +1,29 @@
 package net.binis.codegen.spring.query.executor;
 
+import net.binis.codegen.spring.query.QueryAggregateOperation;
 import net.binis.codegen.spring.query.QueryExecute;
 import net.binis.codegen.spring.query.QueryFilter;
+import net.binis.codegen.spring.query.QueryOrderOperation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
+import javax.persistence.Tuple;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
-public class QueryOrderer<R> implements QueryExecute<R> {
+public class QueryOrderer<R> implements QueryExecute<R>, QueryOrderOperation<Object, R>, QueryAggregateOperation {
 
-    protected final QueryExecutor<?, ?, ?, R> executor;
+    protected final QueryExecutor<?, ?, ?, R, ?> executor;
+    protected final Function<String, Object> func;
 
-    public QueryOrderer(QueryExecutor<?, ?, ?, R> executor) {
+    public QueryOrderer(QueryExecutor<?, ?, ?, R, ?> executor, Function<String, Object> func) {
         this.executor = executor;
+        this.func = func;
     }
 
     @Override
@@ -100,6 +107,16 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     }
 
     @Override
+    public Optional<Tuple> tuple() {
+        return executor.tuple();
+    }
+
+    @Override
+    public List<Tuple> tuples() {
+        return executor.tuples();
+    }
+
+    @Override
     public QueryExecute<R> flush(FlushModeType type) {
         return executor.flush(type);
     }
@@ -132,6 +149,54 @@ public class QueryOrderer<R> implements QueryExecute<R> {
     @Override
     public int remove() {
         return executor.remove();
+    }
+
+    @Override
+    public Object sum() {
+        executor.sum();
+        return this;
+    }
+
+    @Override
+    public Object min() {
+        executor.min();
+        return this;
+    }
+
+    @Override
+    public Object max() {
+        executor.max();
+        return this;
+    }
+
+    @Override
+    public Object avg() {
+        executor.avg();
+        return this;
+    }
+
+    @Override
+    public Object cnt() {
+        executor.cnt();
+        return this;
+    }
+
+    @Override
+    public Object desc() {
+        return null;
+    }
+
+    @Override
+    public Object asc() {
+        return null;
+    }
+
+    public QueryAggregateOperation and() {
+        return this;
+    }
+
+    public Object where() {
+        return executor;
     }
 
 }

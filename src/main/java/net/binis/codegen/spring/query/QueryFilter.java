@@ -12,5 +12,6 @@ import java.util.function.Consumer;
 public interface QueryFilter<R> extends QueryExecute<R> {
 
     QueryFilter<R> parameter(String name, Object value);
+    QueryFilter<R> disable();
 
 }
