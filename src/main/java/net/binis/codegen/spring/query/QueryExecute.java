@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-public interface QueryExecute<R> {
+public interface QueryExecute<R> extends Queryable {
 
     R ensure();
     Optional<R> get();

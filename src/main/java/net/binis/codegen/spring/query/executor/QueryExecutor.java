@@ -18,15 +18,15 @@ import static java.util.Objects.nonNull;
 
 public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryCollectionFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryAggregateOperation {
 
-    private final StringBuilder query = new StringBuilder();
-    private StringBuilder select;
     private int fieldsCount = 0;
     private final List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
     private Class<?> returnClass;
+    private Class<?> aggregateClass;
     private Class<?> mapClass;
     private Pageable pageable;
     private boolean isNative;
+    private boolean isCustom;
     private boolean isModifying;
     private O order;
     private A aggregate;
@@ -34,6 +34,15 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private Runnable onEnvelop = null;
     private boolean brackets;
     private boolean condition;
+
+    private final StringBuilder query = new StringBuilder();
+    protected String alias = "u";
+    protected StringBuilder select;
+    protected StringBuilder where;
+    protected StringBuilder orderPart;
+    protected StringBuilder join;
+    protected StringBuilder current;
+    protected int joins;
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -44,46 +53,51 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public QueryExecutor(Class<?> returnClass) {
         this.returnClass = returnClass;
         mapClass = returnClass;
-        query.append("from ").append(returnClass.getName()).append(" u where");
     }
 
     public QueryExecutor<T, S, O, R, A> identifier(String id, Object value) {
-        if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
-            query.append(" (");
+        if (Objects.isNull(where)) {
+            whereStart();
+        }
+        if (Objects.isNull(enveloped) && where.length() == 0 || where.charAt(where.length() - 1) != '.') {
+            where.append(" (").append(alias).append(".");
             brackets = true;
         }
         if (Objects.isNull(value)) {
-            query.append(id).append(" is null)");
+            where.append(id).append(" is null)");
         } else {
             params.add(value);
-            query.append(id);
+            where.append(id);
             if (nonNull(enveloped)) {
                 if (nonNull(onEnvelop)) {
                     onEnvelop.run();
                     onEnvelop = null;
                 } else {
-                    query.append(enveloped);
+                    where.append(enveloped);
                 }
                 enveloped = null;
             }
-            query.append(" = ?").append(params.size()).append(")");
+            where.append(" = ?").append(params.size()).append(")");
         }
 
         return this;
     }
 
     public QueryExecutor<T, S, O, R, A> identifier(String id) {
-        if (query.charAt(query.length() - 1) != '.' && Objects.isNull(enveloped)) {
-            query.append(" (");
+        if (Objects.isNull(where)) {
+            whereStart();
+        }
+        if (Objects.isNull(enveloped) && where.length() == 0 || where.charAt(where.length() - 1) != '.') {
+            where.append(" (").append(alias).append(".");
             brackets = true;
         }
-        query.append(id);
+        where.append(id);
         if (nonNull(enveloped)) {
             if (nonNull(onEnvelop)) {
                 onEnvelop.run();
                 onEnvelop = null;
             } else {
-                query.append(enveloped);
+                where.append(enveloped);
             }
             enveloped = null;
         }
@@ -92,18 +106,21 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public void embedded(String id) {
-        if (query.charAt(query.length() - 1) == '.') {
-            query.append(id).append(".");
+        if (current.length() > 0 && current.charAt(current.length() - 1) == '.') {
+            current.append(id).append(".");
         } else {
             if (Objects.isNull(enveloped)) {
-                query.append(" (");
+                current.append(" (");
+                if (!alias.equals(id)) {
+                    current.append(alias).append(".");
+                }
             }
-            query.append(id).append(".");
+            current.append(id).append(".");
         }
     }
 
     protected void doNot() {
-        query.append(" not ");
+        current.append(" not ");
     }
 
     protected void doLower() {
@@ -131,18 +148,18 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     private void backInsert(String func) {
-        var idx = query.lastIndexOf("(");
-        query.insert(idx + 1, func);
+        var idx = current.lastIndexOf("(");
+        current.insert(idx + 1, func);
     }
 
     private void backEnvelop(String func) {
         backInsert(func + "(");
-        query.append(")");
+        current.append(")");
     }
 
     private void envelop(String func) {
         enveloped = ")";
-        query.append(" (").append(func).append("(");
+        current.append(" (").append(func).append("(");
     }
 
     private void envelop(String func, Object... params) {
@@ -156,7 +173,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             }
             enveloped = s.append(")").toString();
 
-            query.append(" (").append(func).append("(");
+            current.append(" (").append(func).append("(");
         }
     }
 
@@ -172,16 +189,19 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
                 onEnvelop.run();
                 onEnvelop = null;
             } else {
-                query.append(enveloped);
+                current.append(enveloped);
             }
             enveloped = null;
         }
-        query.append(" ").append(op).append(" ?").append(params.size()).append(")");
+        current.append(" ").append(op).append(" ?").append(params.size()).append(")");
         brackets = false;
     }
 
     protected QueryExecutor<T, S, O, R, A> orderIdentifier(String id) {
-        query.append(" ").append(id);
+        if (Objects.isNull(orderPart)) {
+            orderPart = new StringBuilder();
+        }
+        orderPart.append(" ").append(alias).append(".").append(id);
         return this;
     }
 
@@ -199,38 +219,39 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     protected O orderStart(O order) {
         this.order = order;
-        stripLast("where");
-        query.append(" order by ");
+        orderPart = new StringBuilder();
+        current = orderPart;
         return order;
     }
 
     protected A aggregateStart(A aggregate) {
         this.aggregate = aggregate;
         select = new StringBuilder();
+        current = select;
         return aggregate;
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
-        query.append(" ").append(script);
+        current.append(" ").append(script);
 
         if (brackets) {
-            query.append(")");
+            current.append(")");
             brackets = false;
         }
 
-        query.append(" ");
+        current.append(" ");
         return this;
     }
 
     @Override
     public S and() {
-        query.append(" and ");
+        current.append(" and ");
         return (S) this;
     }
 
     @Override
     public S or() {
-        query.append(" or ");
+        current.append(" or ");
         return (S) this;
     }
 
@@ -244,6 +265,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public S by() {
+        whereStart();
         resultType = QueryProcessor.ResultType.SINGLE;
         return (S) this;
     }
@@ -251,6 +273,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     @SuppressWarnings("unchecked")
     @Override
     public <Q> Q by(boolean condition, Function<S, Q> query) {
+        whereStart();
         if (condition) {
             query.apply((S) this);
         }
@@ -260,6 +283,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     @SuppressWarnings("unchecked")
     @Override
     public <Q> Q by(boolean condition, Function<S, Q> query, Function<S, Q> elseQuery) {
+        whereStart();
         if (condition) {
             query.apply((S) this);
         } else {
@@ -270,7 +294,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     public long count() {
         resultType = QueryProcessor.ResultType.COUNT;
-        query.insert(0, "select count(*) ");
+        select = new StringBuilder("count(*)");
         return (long) execute();
     }
 
@@ -293,6 +317,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public QueryParam<R> query(String query) {
+        isCustom = true;
         this.query.setLength(0);
         this.query.append(query);
         return this;
@@ -347,7 +372,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     @Override
     public void paginated(Pageable pageable, Consumer<R> consumer) {
         var page = page(pageable);
-        while(!page.isEmpty()) {
+        while (!page.isEmpty()) {
             page.getContent().forEach(consumer);
             if (page.getContent().size() < pageable.getPageSize()) {
                 break;
@@ -416,32 +441,46 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public int remove() {
         isModifying = true;
         resultType = QueryProcessor.ResultType.REMOVE;
-        query.insert(0, "delete ");
-        return (int) execute();
+        var result = execute();
+        return nonNull(result) ? (int) result : 0;
     }
 
     @Override
     public O desc() {
-        QueryExecutor.this.query.append(" desc,");
+        QueryExecutor.this.orderPart.append(" desc,");
         return order;
     }
 
     @Override
     public O asc() {
-        QueryExecutor.this.query.append(" asc,");
+        QueryExecutor.this.orderPart.append(" asc,");
         return order;
     }
 
     public Object execute() {
-        stripLast(",");
-        stripLast("where");
         if (nonNull(select)) {
             stripLast(select, ",");
-            select.insert(0, "select ").append(" ");
-            query.insert(0, select);
+            query.append("select ").append(select).append(" ");
+        }
+        if (query.length() == 0 && resultType == QueryProcessor.ResultType.REMOVE) {
+            query.append("delete ");
+        }
+        if (!isCustom) {
+            query.append("from ").append(returnClass.getName()).append(" ").append(alias).append(" ");
+        }
+        if (nonNull(where) && where.length() > 0) {
+            stripLast(where, ",");
+            query.append("where").append(where);
+        }
+        if (nonNull(orderPart)) {
+            stripLast(orderPart, ",");
+            query.append(" order by ").append(orderPart);
+        }
+        if (nonNull(aggregateClass) && fieldsCount == 1) {
+            returnClass = aggregateClass;
         }
         return withRes(manager ->
-            QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
+                QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
     @Override
@@ -473,7 +512,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     private void stripLast(String what) {
-        stripLast(query, what);
+        stripLast(current, what);
     }
 
     private void stripLast(StringBuilder builder, String what) {
@@ -517,14 +556,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     @Override
     public QuerySelectOperation<S, O, R> isNull() {
         stripLast(".");
-        query.append(" is null)");
+        where.append(" is null)");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> isNotNull() {
         stripLast(".");
-        query.append(" is not null)");
+        where.append(" is not null)");
         return this;
     }
 
@@ -655,7 +694,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public Object cnt() {
         aggregateFunction("count");
         if (fieldsCount == 0) {
-            returnClass = Long.class;
+            aggregateClass = Long.class;
         }
         return aggregate;
     }
@@ -663,7 +702,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public void aggregateFunction(String sum) {
         select.append(sum).append("(");
         if (fieldsCount == 0) {
-            returnClass = Double.class;
+            aggregateClass = Double.class;
             mapClass = Double.class;
         }
     }
@@ -683,7 +722,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public QuerySelectOperation<S, O, R> contains(T value) {
         params.add(value);
         backInsert("?" + params.size() + " member of ");
-        query.append(")");
+        where.append(")");
         return this;
     }
 
@@ -691,19 +730,24 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public QuerySelectOperation<S, O, R> notContains(T value) {
         params.add(value);
         backInsert("?" + params.size() + " not member of ");
-        query.append(")");
+        where.append(")");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> isEmpty() {
-        query.append(" is empty)");
+        where.append(" is empty)");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> isNotEmpty() {
-        query.append(" is not empty)");
+        where.append(" is not empty)");
         return this;
+    }
+
+    public void whereStart() {
+        where = new StringBuilder();
+        current = where;
     }
 }

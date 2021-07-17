@@ -196,6 +196,7 @@ public class QueryOrderer<R> implements QueryExecute<R>, QueryOrderOperation<Obj
     }
 
     public Object where() {
+        executor.whereStart();
         return executor;
     }
 
