@@ -687,6 +687,9 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     @Override
     public Object avg() {
         aggregateFunction("avg");
+        if (fieldsCount == 0) {
+            mapClass = Double.class;
+        }
         return aggregate;
     }
 
@@ -695,6 +698,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         aggregateFunction("count");
         if (fieldsCount == 0) {
             aggregateClass = Long.class;
+            mapClass = Long.class;
         }
         return aggregate;
     }
@@ -703,7 +707,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         select.append(sum).append("(");
         if (fieldsCount == 0) {
             aggregateClass = Double.class;
-            mapClass = Double.class;
+            mapClass = void.class;
         }
     }
 

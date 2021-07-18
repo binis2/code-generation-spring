@@ -81,7 +81,7 @@ public class QueryProcessor {
 
     private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
         var map = ResultType.COUNT.equals(resultType) ? Long.class : returnClass;
-        map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) ? Tuple.class : map;
+        map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) ? Tuple.class : map;
         var q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
                 : manager.createQuery(query, map);
         for (int i = 0; i < params.size(); i++) {
@@ -128,7 +128,12 @@ public class QueryProcessor {
         switch (resultType) {
             case SINGLE:
                 try {
-                    return Optional.ofNullable(map(mapClass, q.getSingleResult()));
+                    var result = q.getSingleResult();
+                    if (void.class.equals(mapClass)) {
+                        return Optional.ofNullable(((Tuple) result).get(0));
+                    }
+
+                    return Optional.ofNullable(map(mapClass, result));
                 } catch (NoResultException ex) {
                     return Optional.empty();
                 }
