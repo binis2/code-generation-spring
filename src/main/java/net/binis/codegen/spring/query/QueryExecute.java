@@ -29,7 +29,9 @@ public interface QueryExecute<R> extends Queryable {
     void paginated(long pageSize, Consumer<R> consumer);
     void paginated(Pageable pageable, Consumer<R> consumer);
     Optional<Tuple> tuple();
+    <V> Optional<Class<V>> tuple(Class<V> cls);
     List<Tuple> tuples();
+    <V> List<V> tuples(Class<V> cls);
 
     QueryExecute<R> flush(FlushModeType type);
     QueryExecute<R> lock(LockModeType type);

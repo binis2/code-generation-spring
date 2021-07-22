@@ -294,6 +294,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     public long count() {
         resultType = QueryProcessor.ResultType.COUNT;
+        mapClass = Long.class;
         select = new StringBuilder("count(*)");
         return (long) execute();
     }
@@ -388,9 +389,21 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
+    public <V> Optional<Class<V>> tuple(Class<V> cls) {
+        mapClass = cls;
+        return (Optional) tuple();
+    }
+
+    @Override
     public List<Tuple> tuples() {
         resultType = QueryProcessor.ResultType.TUPLES;
         return (List) execute();
+    }
+
+    @Override
+    public <V> List<V> tuples(Class<V> cls) {
+        mapClass = cls;
+        return (List) tuples();
     }
 
 
@@ -403,7 +416,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     @Override
     public QueryExecute<R> lock(LockModeType type) {
         lockMode = type;
-        return null;
+        return this;
     }
 
     @Override
@@ -480,7 +493,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             returnClass = aggregateClass;
         }
         return withRes(manager ->
-                QueryProcessor.process(manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
+                QueryProcessor.process(this, manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
     @Override
@@ -496,6 +509,9 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     @Override
     public Optional<R> get() {
+        if (QueryProcessor.ResultType.UNKNOWN.equals(resultType)) {
+            resultType = QueryProcessor.ResultType.SINGLE;
+        }
         return (Optional) execute();
     }
 

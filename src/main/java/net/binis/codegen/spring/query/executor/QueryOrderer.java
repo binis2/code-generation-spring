@@ -112,8 +112,18 @@ public class QueryOrderer<R> implements QueryExecute<R>, QueryOrderOperation<Obj
     }
 
     @Override
+    public <V> Optional<Class<V>> tuple(Class<V> cls) {
+        return executor.tuple(cls);
+    }
+
+    @Override
     public List<Tuple> tuples() {
         return executor.tuples();
+    }
+
+    @Override
+    public <V> List<V> tuples(Class<V> cls) {
+        return executor.tuples(cls);
     }
 
     @Override

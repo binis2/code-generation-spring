@@ -4,7 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.query.executor.Filter;
+import net.binis.codegen.spring.query.executor.QueryExecutor;
+import net.binis.codegen.spring.query.executor.TupleBackedProjection;
 import net.binis.codegen.tools.Reflection;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.projection.ProjectionFactory;
@@ -13,11 +16,13 @@ import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 import javax.persistence.*;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 @Slf4j
@@ -60,9 +65,9 @@ public class QueryProcessor {
 
     public static Processor logProcessor() {
         var p = processor;
-        return (EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) -> {
+        return (QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) -> {
             log.info(query);
-            return p.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
+            return p.process(executor, manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
         };
     }
 
@@ -75,13 +80,17 @@ public class QueryProcessor {
     }
 
     @SuppressWarnings("unchecked")
-    public static <R> R process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
-        return (R) processor.process(manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
+    public static <R> R process(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
+        return (R) processor.process(executor, manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
     }
 
-    private static Object defaultProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
-        var map = ResultType.COUNT.equals(resultType) ? Long.class : returnClass;
-        map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) ? Tuple.class : map;
+    private static Object defaultProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
+
+        if (BeanUtils.isSimpleValueType(mapClass)) {
+            returnClass = mapClass;
+        }
+
+        var map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) || Void.class.equals(mapClass) ? Tuple.class : returnClass;
         var q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
                 : manager.createQuery(query, map);
         for (int i = 0; i < params.size(); i++) {
@@ -156,12 +165,27 @@ public class QueryProcessor {
                 return q.executeUpdate();
             case TUPLE:
                 try {
-                    return Optional.ofNullable(q.getSingleResult());
+                    var result = q.getSingleResult();
+
+                    if (isNull(result)) {
+                        return Optional.empty();
+                    }
+
+                    if (nonNull(mapClass) && mapClass.isInterface()) {
+                        return Optional.of(createProxy((Tuple) result, mapClass, executor));
+                    } else {
+                        return Optional.of(result);
+                    }
                 } catch (NoResultException ex) {
                     return Optional.empty();
                 }
             case TUPLES:
-                return q.getResultList();
+                if (nonNull(mapClass) && mapClass.isInterface()) {
+                    return q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
+                } else {
+                    return q.getResultList();
+                }
+
             default:
                 throw new GenericCodeGenException("Unknown query return type!");
         }
@@ -187,8 +211,15 @@ public class QueryProcessor {
         return result;
     }
 
-    private static Object nullProcess(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
+    private static Object nullProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
         return null;
+    }
+
+    private static Object createProxy(Tuple tuple, Class mapClass, QueryExecutor executor) {
+        return Proxy.newProxyInstance(
+                mapClass.getClassLoader(),
+                new Class[]{mapClass},
+                new TupleBackedProjection(tuple, executor));
     }
 
     public enum ResultType {
@@ -205,7 +236,7 @@ public class QueryProcessor {
 
     @FunctionalInterface
     public interface Processor {
-        Object process(EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters);
+        Object process(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters);
     }
 
 }
