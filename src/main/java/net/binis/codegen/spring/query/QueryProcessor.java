@@ -171,7 +171,7 @@ public class QueryProcessor {
                         return Optional.empty();
                     }
 
-                    if (nonNull(mapClass) && mapClass.isInterface()) {
+                    if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
                         return Optional.of(createProxy((Tuple) result, mapClass, executor));
                     } else {
                         return Optional.of(result);
@@ -180,7 +180,7 @@ public class QueryProcessor {
                     return Optional.empty();
                 }
             case TUPLES:
-                if (nonNull(mapClass) && mapClass.isInterface()) {
+                if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
                     return q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
                 } else {
                     return q.getResultList();

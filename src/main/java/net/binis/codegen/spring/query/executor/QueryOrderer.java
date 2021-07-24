@@ -1,9 +1,6 @@
 package net.binis.codegen.spring.query.executor;
 
-import net.binis.codegen.spring.query.QueryAggregateOperation;
-import net.binis.codegen.spring.query.QueryExecute;
-import net.binis.codegen.spring.query.QueryFilter;
-import net.binis.codegen.spring.query.QueryOrderOperation;
+import net.binis.codegen.spring.query.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -12,11 +9,11 @@ import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
-public class QueryOrderer<R> implements QueryExecute<R>, QueryOrderOperation<Object, R>, QueryAggregateOperation {
+public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrderOperation<Object, R>, QueryJoinAggregateOperation {
 
     protected final QueryExecutor<?, ?, ?, R, ?> executor;
     protected final Function<String, Object> func;
@@ -162,6 +159,11 @@ public class QueryOrderer<R> implements QueryExecute<R>, QueryOrderOperation<Obj
     }
 
     @Override
+    public String print() {
+        return executor.print();
+    }
+
+    @Override
     public Object sum() {
         executor.sum();
         return this;
@@ -208,6 +210,31 @@ public class QueryOrderer<R> implements QueryExecute<R>, QueryOrderOperation<Obj
     public Object where() {
         executor.whereStart();
         return executor;
+    }
+
+    @Override
+    public String getAccessorAlias() {
+        return executor.getAccessorAlias();
+    }
+
+    @Override
+    public StringBuilder getAccessorSelect() {
+        return executor.getAccessorSelect();
+    }
+
+    @Override
+    public StringBuilder getAccessorWhere() {
+        return executor.getAccessorWhere();
+    }
+
+    @Override
+    public StringBuilder getAccessorOrder() {
+        return executor.getAccessorOrder();
+    }
+
+    @Override
+    public void setJoinSupplier(IntSupplier supplier) {
+        executor.setJoinSupplier(supplier);
     }
 
 }

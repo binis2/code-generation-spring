@@ -81,50 +81,56 @@ public class TupleBackedProjection implements InvocationHandler {
     }
 
     private Object processSubEntity(Object id, Class<?> returnType) {
-        var obj = CodeFactory.lookup(returnType);
-        if (nonNull(obj)) {
-            try {
-                Function<EntityManager, Object> func = (m) -> m.find(obj, convert(id, m.getMetamodel().entity(obj).getIdType().getJavaType()));
-                return withRes.invoke(executor,  func);
-            } catch (Exception e) {
-                return new IllegalArgumentException();
+        if (nonNull(id)) {
+            var obj = CodeFactory.lookup(returnType);
+            if (nonNull(obj)) {
+                try {
+                    Function<EntityManager, Object> func = (m) -> m.find(obj, convert(id, m.getMetamodel().entity(obj).getIdType().getJavaType()));
+                    return withRes.invoke(executor, func);
+                } catch (Exception e) {
+                    return new IllegalArgumentException();
+                }
+            } else {
+                throw new IllegalArgumentException();
             }
         } else {
-            throw new IllegalArgumentException();
+            return null;
         }
     }
 
     private Object convert(Object val, Class cls) {
-        if (val instanceof BigInteger) {
-            if (int.class.equals(cls) || Integer.class.equals(cls)) {
-                return ((BigInteger) val).intValue();
+        if (nonNull(val)) {
+            if (val instanceof BigInteger) {
+                if (int.class.equals(cls) || Integer.class.equals(cls)) {
+                    return ((BigInteger) val).intValue();
+                }
+                if (long.class.equals(cls) || Long.class.equals(cls)) {
+                    return ((BigInteger) val).longValue();
+                }
             }
-            if (long.class.equals(cls) || Long.class.equals(cls)) {
-                return ((BigInteger) val).longValue();
-            }
-        }
 
-        if (val instanceof BigDecimal) {
-            if (double.class.equals(cls) || Double.class.equals(cls)) {
-                return ((BigDecimal) val).doubleValue();
+            if (val instanceof BigDecimal) {
+                if (double.class.equals(cls) || Double.class.equals(cls)) {
+                    return ((BigDecimal) val).doubleValue();
+                }
+                if (float.class.equals(cls) || Float.class.equals(cls)) {
+                    return ((BigDecimal) val).floatValue();
+                }
             }
-            if (float.class.equals(cls) || Float.class.equals(cls)) {
-                return ((BigDecimal) val).floatValue();
-            }
-        }
 
-        if (val instanceof Timestamp) {
-            if (LocalDateTime.class.equals(cls)) {
-                return ((Timestamp) val).toLocalDateTime();
-            }
-            if (LocalDate.class.equals(cls)) {
-                return ((Timestamp) val).toLocalDateTime().toLocalDate();
-            }
-            if (LocalTime.class.equals(cls)) {
-                return ((Timestamp) val).toLocalDateTime().toLocalTime();
-            }
-            if (OffsetDateTime.class.equals(cls)) {
-                return ((Timestamp) val).toLocalDateTime().atOffset(ZoneOffset.UTC);
+            if (val instanceof Timestamp) {
+                if (LocalDateTime.class.equals(cls)) {
+                    return ((Timestamp) val).toLocalDateTime();
+                }
+                if (LocalDate.class.equals(cls)) {
+                    return ((Timestamp) val).toLocalDateTime().toLocalDate();
+                }
+                if (LocalTime.class.equals(cls)) {
+                    return ((Timestamp) val).toLocalDateTime().toLocalTime();
+                }
+                if (OffsetDateTime.class.equals(cls)) {
+                    return ((Timestamp) val).toLocalDateTime().atOffset(ZoneOffset.UTC);
+                }
             }
         }
         return val;

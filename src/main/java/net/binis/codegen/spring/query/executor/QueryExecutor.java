@@ -1,8 +1,11 @@
 package net.binis.codegen.spring.query.executor;
 
+import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
+import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
+import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,10 +16,14 @@ import javax.persistence.Tuple;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 
 import static java.util.Objects.nonNull;
 
-public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryCollectionFunctions<T, QuerySelectOperation<S, O, R>>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryAggregateOperation {
+@Slf4j
+public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryJoinAggregateOperation {
+
+    private static final String DEFAULT_ALIAS = "u";
 
     private int fieldsCount = 0;
     private final List<Object> params = new ArrayList<>();
@@ -36,13 +43,21 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private boolean condition;
 
     private final StringBuilder query = new StringBuilder();
-    protected String alias = "u";
-    protected StringBuilder select;
-    protected StringBuilder where;
-    protected StringBuilder orderPart;
-    protected StringBuilder join;
-    protected StringBuilder current;
-    protected int joins;
+    protected String alias = DEFAULT_ALIAS;
+    private StringBuilder select;
+    private StringBuilder where;
+    private StringBuilder orderPart;
+    private StringBuilder group;
+    private StringBuilder join;
+    private StringBuilder current;
+    private int joins;
+
+    private IntSupplier joinSupplier = () -> joins++;
+
+
+    protected Class joinClass;
+    protected String joinField;
+
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -193,7 +208,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             }
             enveloped = null;
         }
-        current.append(" ").append(op).append(" ?").append(params.size()).append(")");
+        current.append(' ').append(op).append(" ?").append(params.size()).append(")");
         brackets = false;
     }
 
@@ -201,7 +216,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         if (Objects.isNull(orderPart)) {
             orderPart = new StringBuilder();
         }
-        orderPart.append(" ").append(alias).append(".").append(id);
+        orderPart.append(' ').append(alias).append(".").append(id);
         return this;
     }
 
@@ -213,13 +228,15 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         }
 
         fieldsCount++;
-        select.append(id).append("),");
+        select.append(alias).append(".").append(id).append("),");
         return aggregate;
     }
 
     protected O orderStart(O order) {
         this.order = order;
-        orderPart = new StringBuilder();
+        if (Objects.isNull(orderPart)) {
+            orderPart = new StringBuilder();
+        }
         current = orderPart;
         return order;
     }
@@ -232,14 +249,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
-        current.append(" ").append(script);
+        current.append(' ').append(script);
 
         if (brackets) {
             current.append(")");
             brackets = false;
         }
 
-        current.append(" ");
+        current.append(' ');
         return this;
     }
 
@@ -384,26 +401,26 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     @Override
     public Optional<Tuple> tuple() {
+        return (Optional) tuple(fieldsCount == 1 ? mapClass : Tuple.class);
+    }
+
+    @Override
+    public Optional tuple(Class cls) {
+        mapClass = cls;
         resultType = QueryProcessor.ResultType.TUPLE;
         return (Optional) execute();
     }
 
     @Override
-    public <V> Optional<Class<V>> tuple(Class<V> cls) {
-        mapClass = cls;
-        return (Optional) tuple();
-    }
-
-    @Override
     public List<Tuple> tuples() {
-        resultType = QueryProcessor.ResultType.TUPLES;
-        return (List) execute();
+        return (List) tuples(fieldsCount == 1 ? mapClass : Tuple.class);
     }
 
     @Override
-    public <V> List<V> tuples(Class<V> cls) {
+    public List tuples(Class cls) {
+        resultType = QueryProcessor.ResultType.TUPLES;
         mapClass = cls;
-        return (List) tuples();
+        return (List) execute();
     }
 
 
@@ -459,6 +476,13 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
+    public String print() {
+        var result = new StringBuilder();
+        buildQuery(result);
+        return result.toString();
+    }
+
+    @Override
     public O desc() {
         QueryExecutor.this.orderPart.append(" desc,");
         return order;
@@ -471,29 +495,43 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public Object execute() {
-        if (nonNull(select)) {
-            stripLast(select, ",");
-            query.append("select ").append(select).append(" ");
-        }
-        if (query.length() == 0 && resultType == QueryProcessor.ResultType.REMOVE) {
-            query.append("delete ");
-        }
-        if (!isCustom) {
-            query.append("from ").append(returnClass.getName()).append(" ").append(alias).append(" ");
-        }
-        if (nonNull(where) && where.length() > 0) {
-            stripLast(where, ",");
-            query.append("where").append(where);
-        }
-        if (nonNull(orderPart)) {
-            stripLast(orderPart, ",");
-            query.append(" order by ").append(orderPart);
-        }
+        buildQuery(query);
         if (nonNull(aggregateClass) && fieldsCount == 1) {
             returnClass = aggregateClass;
         }
         return withRes(manager ->
                 QueryProcessor.process(this, manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
+    }
+
+    private void buildQuery(StringBuilder query) {
+        if (nonNull(select)) {
+            stripLast(select, ",");
+            query.append("select ").append(select).append(' ');
+        }
+        if (query.length() == 0 && resultType == QueryProcessor.ResultType.REMOVE) {
+            query.append("delete ");
+        }
+        if (!isCustom) {
+            query.append("from ").append(returnClass.getName()).append(' ').append(alias).append(' ');
+        }
+
+        if (nonNull(join) && join.length() > 0) {
+            query.append(join);
+        }
+
+        if (nonNull(where) && where.length() > 0) {
+            stripLast(where, ",");
+            query.append("where").append(where);
+        }
+
+        if (nonNull(group)) {
+            query.append(" group by ").append(group).append(' ');
+        }
+
+        if (nonNull(orderPart)) {
+            stripLast(orderPart, ",");
+            query.append(" order by ").append(orderPart);
+        }
     }
 
     @Override
@@ -539,6 +577,16 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             builder.setLength(qlen - wlen);
         }
     }
+
+    private void stripToLast(StringBuilder builder, String what) {
+        var qlen = builder.length();
+        var wlen = what.length();
+        var idx = builder.lastIndexOf(what);
+        if (idx > -1) {
+            builder.setLength(idx + 1);
+        }
+    }
+
 
 
     @Override
@@ -770,4 +818,144 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         where = new StringBuilder();
         current = where;
     }
+
+    public Object joinStart(String id, Class cls) {
+        joinClass = cls;
+        joinField = id;
+        return this;
+    }
+
+
+    @Override
+    public Object where() {
+        whereStart();
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> join(Function<Object, Queryable> joinQuery) {
+        handleJoin(joinQuery, "join");
+        return this;
+    }
+
+    private void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
+        if (nonNull(joinQuery)) {
+            var query = (QueryOrderer) CodeFactory.create(joinClass);
+            if (nonNull(query)) {
+                var access = (QueryAccessor) query;
+                access.setJoinSupplier(joinSupplier);
+                var q = (QueryAccessor) joinQuery.apply(query);
+
+                if (nonNull(q.getAccessorSelect()) && q.getAccessorSelect().length() > 0) {
+                    if (Objects.isNull(select)) {
+                        select = new StringBuilder();
+                        if (DEFAULT_ALIAS.equals(alias)) {
+                            select.append(alias).append(", ");
+                        }
+                    }
+
+                    select.append(q.getAccessorSelect());
+
+                    if (Objects.isNull(group)) {
+                        group = new StringBuilder(DEFAULT_ALIAS);
+                    }
+
+                    if (nonNull(q.getAccessorOrder())) {
+                        if (Objects.isNull(orderPart)) {
+                            orderPart = new StringBuilder();
+                        }
+
+                        orderPart.append(buildAggregatedOrder(q.getAccessorOrder(), q.getAccessorSelect()));
+                    }
+
+                } else {
+                    if (nonNull(q.getAccessorOrder())) {
+                        throw new QueryBuilderException("Unable to perform order on unselected column.");
+                    }
+                }
+
+                if (nonNull(q.getAccessorWhere())) {
+                    if (Objects.isNull(where)) {
+                        where = new StringBuilder(' ');
+                    }
+
+                    where.append(q.getAccessorWhere()).append(' ');
+                }
+
+                if (Objects.isNull(join)) {
+                    join = new StringBuilder();
+                }
+
+                join.append(joinOperation).append(' ').append(alias).append(".").append(joinField).append(' ').append(q.getAccessorAlias()).append(' ');
+            } else {
+                log.warn("Can't find creator for {}", joinClass.getCanonicalName());
+            }
+        } else {
+            if (Objects.isNull(join)) {
+                join = new StringBuilder();
+            }
+
+            join.append(joinOperation).append(' ').append(alias).append(".").append(joinField).append(" j").append(joinSupplier.getAsInt()).append(' ');
+        }
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> joinFetch(Function<Object, Queryable> joinQuery) {
+        handleJoin(joinQuery, "join fetch");
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> joinFetch() {
+        if (nonNull(where) && where.length() > 0) {
+            stripLast(where, " ");
+            stripToLast(where, " ");
+        }
+        handleJoin(null, "join fetch");
+        return this;
+    }
+
+    private StringBuilder buildAggregatedOrder(StringBuilder order, StringBuilder select) {
+        StringBuilder result = new StringBuilder();
+        var o = order.toString().strip().split(", ");
+        var s = select.toString().split(",");
+
+        for (var ord : o) {
+            var or = ord.split("\\s|,");
+            result.append(Arrays.stream(s).filter(sel -> sel.strip().endsWith(or[0] + ")")).findFirst().orElseThrow(() -> new QueryBuilderException("Unable to perform order on unselected column.")));
+            if (or.length > 1) {
+                result.append(' ').append(or[1]);
+            }
+            result.append(",");
+        }
+
+        return result;
+    }
+
+    @Override
+    public String getAccessorAlias() {
+        return alias;
+    }
+
+    @Override
+    public StringBuilder getAccessorSelect() {
+        return select;
+    }
+
+    @Override
+    public StringBuilder getAccessorWhere() {
+        return where;
+    }
+
+    @Override
+    public StringBuilder getAccessorOrder() {
+        return orderPart;
+    }
+
+    @Override
+    public void setJoinSupplier(IntSupplier supplier) {
+        alias = "j" + supplier.getAsInt();
+        joinSupplier = supplier;
+    }
+
 }
