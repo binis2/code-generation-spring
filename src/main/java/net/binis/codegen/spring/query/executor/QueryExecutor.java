@@ -519,7 +519,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             query.append(join);
         }
 
-        if (nonNull(where) && where.length() > 0) {
+        if (nonNull(where) && where.length() > 1) {
             stripLast(where, ",");
             query.append("where").append(where);
         }
@@ -583,10 +583,18 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         var wlen = what.length();
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
-            builder.setLength(idx + 1);
+            builder.setLength(idx + what.length());
         }
     }
 
+    private void stripToLastInclude(StringBuilder builder, String what) {
+        var qlen = builder.length();
+        var wlen = what.length();
+        var idx = builder.lastIndexOf(what);
+        if (idx > -1) {
+            builder.setLength(idx);
+        }
+    }
 
 
     @Override
@@ -822,6 +830,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public Object joinStart(String id, Class cls) {
         joinClass = cls;
         joinField = id;
+        identifier(id);
         return this;
     }
 
@@ -839,6 +848,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     private void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
+        stripToLastInclude(where, " (");
         if (nonNull(joinQuery)) {
             var query = (QueryOrderer) CodeFactory.create(joinClass);
             if (nonNull(query)) {
@@ -907,11 +917,11 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch() {
+        handleJoin(null, "join fetch");
         if (nonNull(where) && where.length() > 0) {
             stripLast(where, " ");
             stripToLast(where, " ");
         }
-        handleJoin(null, "join fetch");
         return this;
     }
 
