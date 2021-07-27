@@ -3,7 +3,7 @@ package net.binis.codegen.spring.query;
 import java.util.Collection;
 import java.util.List;
 
-public interface QueryFunctions<T, R> {
+public interface QueryFunctions<T, R> extends QueryScript<R> {
 
     QueryFunctions<Long, R> length();
     R equal(T value);
@@ -19,6 +19,5 @@ public interface QueryFunctions<T, R> {
     R greaterEqual(T value);
     R less(T value);
     R lessEqual(T value);
-    R script(String script);
 
 }

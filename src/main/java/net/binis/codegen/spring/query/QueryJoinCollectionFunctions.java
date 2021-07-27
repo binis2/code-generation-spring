@@ -6,6 +6,5 @@ public interface QueryJoinCollectionFunctions<T, R, J> extends QueryCollectionFu
 
     R join(Function<J, Queryable> join);
     R joinFetch(Function<J, Queryable> join);
-    R joinFetch();
 
 }

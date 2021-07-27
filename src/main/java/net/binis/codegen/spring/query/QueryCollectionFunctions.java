@@ -7,5 +7,6 @@ public interface QueryCollectionFunctions<T, R> {
     R notContains(T value);
     R isEmpty();
     R isNotEmpty();
+    R joinFetch();
 
 }
