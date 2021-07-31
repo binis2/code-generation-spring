@@ -26,7 +26,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private static final String DEFAULT_ALIAS = "u";
 
     private int fieldsCount = 0;
-    private final List<Object> params = new ArrayList<>();
+    private List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
     private Class<?> returnClass;
     private Class<?> aggregateClass;
@@ -57,7 +57,6 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     protected Class joinClass;
     protected String joinField;
-
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -854,6 +853,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             if (nonNull(query)) {
                 var access = (QueryAccessor) query;
                 access.setJoinSupplier(joinSupplier);
+                access.setParams(params);
                 var q = (QueryAccessor) joinQuery.apply(query);
 
                 if (nonNull(q.getAccessorSelect()) && q.getAccessorSelect().length() > 0) {
@@ -886,7 +886,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
                 if (nonNull(q.getAccessorWhere())) {
                     if (Objects.isNull(where)) {
-                        where = new StringBuilder(' ');
+                        where = new StringBuilder(" ");
                     }
 
                     where.append(q.getAccessorWhere()).append(' ');
@@ -963,9 +963,19 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
+    public List<Object> getParams() {
+        return params;
+    }
+
+    @Override
     public void setJoinSupplier(IntSupplier supplier) {
         alias = "j" + supplier.getAsInt();
         joinSupplier = supplier;
+    }
+
+    @Override
+    public void setParams(List<Object> params) {
+        this.params = params;
     }
 
 }

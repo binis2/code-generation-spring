@@ -42,6 +42,4 @@ public interface QueryExecute<R> extends Queryable {
     void delete();
     int remove();
 
-    String print();
-
 }

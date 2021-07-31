@@ -233,8 +233,18 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public List<Object> getParams() {
+        return executor.getParams();
+    }
+
+    @Override
     public void setJoinSupplier(IntSupplier supplier) {
         executor.setJoinSupplier(supplier);
+    }
+
+    @Override
+    public void setParams(List<Object> params) {
+        executor.setParams(params);
     }
 
 }
