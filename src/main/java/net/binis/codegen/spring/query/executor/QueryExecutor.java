@@ -61,6 +61,8 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private Runnable onEnvelop = null;
     private boolean brackets;
     private boolean condition;
+    private int lastIdStartPos;
+    private boolean skipNext;
 
     private final StringBuilder query = new StringBuilder();
     protected String alias = DEFAULT_ALIAS;
@@ -93,7 +95,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         if (Objects.isNull(where)) {
             whereStart();
         }
-        if (Objects.isNull(enveloped) && where.length() == 0 || where.charAt(where.length() - 1) != '.') {
+
+        var idStart = where.length() == 0 || where.charAt(where.length() - 1) != '.';
+
+        if (idStart) {
+            lastIdStartPos = where.length();
+        }
+
+        if (Objects.isNull(enveloped) && idStart) {
             where.append(" (").append(alias).append(".");
             brackets = true;
         }
@@ -121,7 +130,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         if (Objects.isNull(where)) {
             whereStart();
         }
-        if (Objects.isNull(enveloped) && where.length() == 0 || where.charAt(where.length() - 1) != '.') {
+
+        var idStart = where.length() == 0 || where.charAt(where.length() - 1) != '.';
+
+        if (idStart) {
+            lastIdStartPos = where.length();
+        }
+
+        if (Objects.isNull(enveloped) && idStart) {
             where.append(" (").append(alias).append(".");
             brackets = true;
         }
@@ -143,6 +159,9 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         if (current.length() > 0 && current.charAt(current.length() - 1) == '.') {
             current.append(id).append(".");
         } else {
+            if (current == where) {
+                lastIdStartPos = where.length();
+            }
             if (Objects.isNull(enveloped)) {
                 current.append(" (");
                 if (!alias.equals(id)) {
@@ -281,13 +300,21 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     @Override
     public S and() {
-        current.append(" and ");
+        if (!skipNext) {
+            current.append(" and ");
+        } else {
+            skipNext = false;
+        }
         return (S) this;
     }
 
     @Override
     public S or() {
-        current.append(" or ");
+        if (!skipNext) {
+            current.append(" or ");
+        } else {
+            skipNext = false;
+        }
         return (S) this;
     }
 
@@ -639,8 +666,15 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     @Override
     public QuerySelectOperation<S, O, R> in(Collection<T> values) {
-        stripLast(".");
-        operation("in", values);
+        if (values.isEmpty()) {
+            where.setLength(lastIdStartPos);
+            stripLast(" ");
+            stripToLast(where, " ");
+            skipNext = true;
+        } else {
+            stripLast(".");
+            operation("in", values);
+        }
         return this;
     }
 
