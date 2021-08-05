@@ -669,8 +669,10 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         if (values.isEmpty()) {
             where.setLength(lastIdStartPos);
             stripLast(" ");
-            stripToLast(where, " ");
-            skipNext = true;
+            stripLast(" not");
+            stripLast(" ");
+            stripToLastInclude(where, " ");
+            skipNext = where.length() == 0;
         } else {
             stripLast(".");
             operation("in", values);
