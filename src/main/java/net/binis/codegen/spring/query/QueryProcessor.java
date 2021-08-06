@@ -111,8 +111,15 @@ public class QueryProcessor {
         }
 
         var map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) || Void.class.equals(mapClass) ? Tuple.class : returnClass;
-        var q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
-                : manager.createQuery(query, map);
+
+        Query q;
+        if (ResultType.REMOVE.equals(resultType) || ResultType.EXECUTE.equals(resultType)) {
+            q = isNative ? manager.createNativeQuery(query)
+                    : manager.createQuery(query);
+        } else {
+            q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
+                    : manager.createQuery(query, map);
+        }
         for (int i = 0; i < params.size(); i++) {
             q.setParameter(i + 1, params.get(i));
         }
