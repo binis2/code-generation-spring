@@ -9,9 +9,9 @@ package net.binis.codegen.spring.query.executor;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -41,7 +41,7 @@ import java.util.function.IntSupplier;
 import static java.util.Objects.nonNull;
 
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryJoinAggregateOperation {
+public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R> {
 
     private static final String DEFAULT_ALIAS = "u";
 
@@ -55,6 +55,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private boolean isNative;
     private boolean isCustom;
     private boolean isModifying;
+    private boolean prepared;
     private O order;
     private A aggregate;
     private String enveloped = null;
@@ -463,12 +464,20 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
+    public PreparedQuery<R> prepare() {
+        if (!prepared) {
+            buildQuery(query);
+            prepared = true;
+        }
+        return this;
+    }
+
+    @Override
     public List tuples(Class cls) {
         resultType = QueryProcessor.ResultType.TUPLES;
         mapClass = cls;
         return (List) execute();
     }
-
 
     @Override
     public QueryExecute<R> flush(FlushModeType type) {
@@ -541,7 +550,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public Object execute() {
-        buildQuery(query);
+        prepare();
         if (nonNull(aggregateClass) && fieldsCount == 1) {
             returnClass = aggregateClass;
         }
@@ -751,8 +760,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
-    public QueryParam<R> params(Collection<Object> params) {
-        this.params.addAll(params);
+    public QueryExecutor<T, S, O, R, A> params(Collection<Object> params) {
+        this.params = new ArrayList<>(params);
+        return this;
+    }
+
+    @Override
+    public PreparedQuery<R> param(int idx, Object param) {
+        params.set(idx, param);
         return this;
     }
 

@@ -144,6 +144,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public PreparedQuery<R> prepare() {
+        return executor.prepare();
+    }
+
+    @Override
     public QueryExecute<R> flush(FlushModeType type) {
         return executor.flush(type);
     }
