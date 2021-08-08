@@ -124,6 +124,36 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public <V> void paginated(long pageSize, Class<V> cls, Consumer<V> consumer) {
+        executor.paginated(pageSize, cls, consumer);
+    }
+
+    @Override
+    public <V> void paginated(Pageable pageable, Class<V> cls, Consumer<V> consumer) {
+        executor.paginated(pageable, cls, consumer);
+    }
+
+    @Override
+    public void paged(long pageSize, Consumer<Page<R>> consumer) {
+        executor.paged(pageSize, consumer);
+    }
+
+    @Override
+    public void paged(Pageable pageable, Consumer<Page<R>> consumer) {
+        executor.paged(pageable, consumer);
+    }
+
+    @Override
+    public <V> void paged(long pageSize, Class<V> cls, Consumer<Page<V>> consumer) {
+        executor.paged(pageSize, cls, consumer);
+    }
+
+    @Override
+    public <V> void paged(Pageable pageable, Class<V> cls, Consumer<Page<V>> consumer) {
+        executor.paged(pageable, cls, consumer);
+    }
+
+    @Override
     public Optional<Tuple> tuple() {
         return executor.tuple();
     }

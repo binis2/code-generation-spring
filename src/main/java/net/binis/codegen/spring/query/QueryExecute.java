@@ -42,12 +42,22 @@ public interface QueryExecute<R> extends Queryable {
     <V> Optional<V> top(Class<V> cls);
     List<R> top(long records);
     <V> List<V> top(long records, Class<V> cls);
-    Page<R> page(Pageable pageable);
-    <V> Page<V> page(Pageable pageable, Class<V> cls);
+
     Page<R> page(long pageSize);
     <V> Page<V> page(long pageSize, Class<V> cls);
+    Page<R> page(Pageable pageable);
+    <V> Page<V> page(Pageable pageable, Class<V> cls);
     void paginated(long pageSize, Consumer<R> consumer);
     void paginated(Pageable pageable, Consumer<R> consumer);
+    <V> void paginated(long pageSize, Class<V> cls, Consumer<V> consumer);
+    <V> void paginated(Pageable pageable, Class<V> cls, Consumer<V> consumer);
+    void paged(long pageSize, Consumer<Page<R>> consumer);
+    void paged(Pageable pageable, Consumer<Page<R>> consumer);
+    <V> void paged(long pageSize, Class<V> cls, Consumer<Page<V>> consumer);
+    <V> void paged(Pageable pageable, Class<V> cls, Consumer<Page<V>> consumer);
+
+
+
     Optional<Tuple> tuple();
     <V> Optional<Class<V>> tuple(Class<V> cls);
     List<Tuple> tuples();

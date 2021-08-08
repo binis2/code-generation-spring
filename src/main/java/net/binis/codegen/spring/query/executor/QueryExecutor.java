@@ -447,6 +447,57 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
+    public <V> void paginated(long pageSize, Class<V> cls, Consumer<V> consumer) {
+        paginated(PageRequest.of(0, (int) pageSize), cls, consumer);
+    }
+
+    @Override
+    public <V> void paginated(Pageable pageable, Class<V> cls, Consumer<V> consumer) {
+        var page = page(pageable, cls);
+        while (!page.isEmpty()) {
+            page.getContent().forEach(consumer);
+            if (page.getContent().size() < pageable.getPageSize()) {
+                break;
+            }
+            page = page(page.nextPageable(), cls);
+        }
+    }
+
+    @Override
+    public void paged(long pageSize, Consumer<Page<R>> consumer) {
+        paged(PageRequest.of(0, (int) pageSize), consumer);
+    }
+
+    @Override
+    public void paged(Pageable pageable, Consumer<Page<R>> consumer) {
+        var page = page(pageable);
+        while (!page.isEmpty()) {
+            consumer.accept(page);
+            if (page.getContent().size() < pageable.getPageSize()) {
+                break;
+            }
+            page = page(page.nextPageable());
+        }
+    }
+
+    @Override
+    public <V> void paged(long pageSize, Class<V> cls, Consumer<Page<V>> consumer) {
+        paged(PageRequest.of(0, (int) pageSize), cls, consumer);
+    }
+
+    @Override
+    public <V> void paged(Pageable pageable, Class<V> cls, Consumer<Page<V>> consumer) {
+        var page = page(pageable, cls);
+        while (!page.isEmpty()) {
+            consumer.accept(page);
+            if (page.getContent().size() < pageable.getPageSize()) {
+                break;
+            }
+            page = page(page.nextPageable(), cls);
+        }
+    }
+
+    @Override
     public Optional<Tuple> tuple() {
         return (Optional) tuple(fieldsCount == 1 ? mapClass : Tuple.class);
     }
