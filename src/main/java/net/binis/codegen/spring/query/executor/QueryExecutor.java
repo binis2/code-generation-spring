@@ -726,7 +726,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
 
     @Override
     public QuerySelectOperation<S, O, R> in(Collection<T> values) {
-        if (values.isEmpty()) {
+        if (Objects.isNull(values) || values.isEmpty()) {
             where.setLength(lastIdStartPos);
             stripLast(" ");
             stripLast(" not");
