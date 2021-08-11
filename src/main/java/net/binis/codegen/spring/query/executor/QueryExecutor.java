@@ -720,6 +720,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     public QuerySelectOperation<S, O, R> between(T from, T to) {
         stripLast(".");
         operation("between", from);
+        stripLast(")");
         operation("and", to);
         return this;
     }
