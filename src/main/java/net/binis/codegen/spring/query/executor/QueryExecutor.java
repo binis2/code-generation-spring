@@ -20,10 +20,12 @@ package net.binis.codegen.spring.query.executor;
  * #L%
  */
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.BasePersistenceOperations;
+import net.binis.codegen.spring.collection.ObservableList;
 import net.binis.codegen.spring.query.*;
 import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
@@ -41,7 +43,7 @@ import java.util.function.IntSupplier;
 import static java.util.Objects.nonNull;
 
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R> {
+public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
     private static final String DEFAULT_ALIAS = "u";
 
@@ -65,6 +67,8 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private int lastIdStartPos;
     private boolean skipNext;
 
+    private Function<Object, Object> mocked;
+
     private final StringBuilder query = new StringBuilder();
     protected String alias = DEFAULT_ALIAS;
     private StringBuilder select;
@@ -76,7 +80,6 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private int joins;
 
     private IntSupplier joinSupplier = () -> joins++;
-
 
     protected Class joinClass;
     protected String joinField;
@@ -107,6 +110,11 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
             where.append(" (").append(alias).append(".");
             brackets = true;
         }
+
+        if (nonNull(mocked)) {
+            value = mocked.apply(value);
+        }
+
         if (Objects.isNull(value)) {
             where.append(id).append(" is null)");
         } else {
@@ -1101,4 +1109,9 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         this.params = params;
     }
 
+    @Override
+    public void setMocked(Function<Object, Object> onValue, Function<Object, Object> onParamAdd) {
+        mocked = onValue;
+        params = new ObservableList(params, onParamAdd);
+    }
 }
