@@ -43,7 +43,7 @@ import java.util.function.IntSupplier;
 import static java.util.Objects.nonNull;
 
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
+public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
     private static final String DEFAULT_ALIAS = "u";
 
@@ -66,6 +66,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     private boolean condition;
     private int lastIdStartPos;
     private boolean skipNext;
+    private boolean fields;
 
     private Function<Object, Object> mocked;
 
@@ -95,7 +96,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         mapClass = returnClass;
     }
 
-    public QueryExecutor<T, S, O, R, A> identifier(String id, Object value) {
+    public QueryExecutor<T, S, O, R, A, F> identifier(String id, Object value) {
         if (Objects.isNull(where)) {
             whereStart();
         }
@@ -135,32 +136,35 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         return this;
     }
 
-    public QueryExecutor<T, S, O, R, A> identifier(String id) {
-        if (Objects.isNull(where)) {
-            whereStart();
-        }
-
-        var idStart = where.length() == 0 || where.charAt(where.length() - 1) != '.';
-
-        if (idStart) {
-            lastIdStartPos = where.length();
-        }
-
-        if (Objects.isNull(enveloped) && idStart) {
-            where.append(" (").append(alias).append(".");
-            brackets = true;
-        }
-        where.append(id);
-        if (nonNull(enveloped)) {
-            if (nonNull(onEnvelop)) {
-                onEnvelop.run();
-                onEnvelop = null;
-            } else {
-                where.append(enveloped);
+    public QueryExecutor<T, S, O, R, A, F> identifier(String id) {
+        if (fields) {
+            select.append(alias).append(".").append(id).append(",");
+        } else {
+            if (Objects.isNull(where)) {
+                whereStart();
             }
-            enveloped = null;
-        }
 
+            var idStart = where.length() == 0 || where.charAt(where.length() - 1) != '.';
+
+            if (idStart) {
+                lastIdStartPos = where.length();
+            }
+
+            if (Objects.isNull(enveloped) && idStart) {
+                where.append(" (").append(alias).append(".");
+                brackets = true;
+            }
+            where.append(id);
+            if (nonNull(enveloped)) {
+                if (nonNull(onEnvelop)) {
+                    onEnvelop.run();
+                    onEnvelop = null;
+                } else {
+                    where.append(enveloped);
+                }
+                enveloped = null;
+            }
+        }
         return this;
     }
 
@@ -259,7 +263,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         brackets = false;
     }
 
-    protected QueryExecutor<T, S, O, R, A> orderIdentifier(String id) {
+    protected QueryExecutor<T, S, O, R, A, F> orderIdentifier(String id) {
         if (Objects.isNull(orderPart)) {
             orderPart = new StringBuilder();
         }
@@ -342,6 +346,14 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
         return (S) this;
     }
 
+    @Override
+    public F select() {
+        select = new StringBuilder();
+        current = select;
+        fields = true;
+        return (F) this;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <Q> Q by(boolean condition, Function<S, Q> query) {
@@ -397,7 +409,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
-    public void transaction(Consumer<QueryStarter<R, S, A>> consumer) {
+    public void transaction(Consumer<QueryStarter<R, S, A, F>> consumer) {
         with(manager -> consumer.accept(this));
     }
 
@@ -820,7 +832,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     @Override
-    public QueryExecutor<T, S, O, R, A> params(Collection<Object> params) {
+    public QueryExecutor<T, S, O, R, A, F> params(Collection<Object> params) {
         this.params = new ArrayList<>(params);
         return this;
     }
@@ -953,6 +965,7 @@ public abstract class QueryExecutor<T, S, O, R, A> extends BasePersistenceOperat
     }
 
     public void whereStart() {
+        fields = false;
         where = new StringBuilder();
         current = where;
     }

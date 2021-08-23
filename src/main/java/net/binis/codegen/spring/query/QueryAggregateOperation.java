@@ -20,9 +20,6 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-
 public interface QueryAggregateOperation<R> {
 
     R cnt();

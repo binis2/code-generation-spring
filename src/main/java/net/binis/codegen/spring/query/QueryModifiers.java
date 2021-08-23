@@ -20,8 +20,6 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-import java.util.function.Consumer;
-
 public interface QueryModifiers<R> {
 
     R not();
