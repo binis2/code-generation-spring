@@ -27,8 +27,10 @@ public interface QueryFunctions<T, R> extends QueryScript<R> {
 
     QueryFunctions<Long, R> length();
     R equal(T value);
+    R equal(Queryable query);
     R between(T from, T to);
     R in(Collection<T> values);
+    R in(Queryable query);
     R isNull();
     R isNotNull();
     R like(String value);
@@ -36,8 +38,12 @@ public interface QueryFunctions<T, R> extends QueryScript<R> {
     R ends(String value);
     R contains(String value);
     R greater(T value);
+    R greater(Queryable query);
     R greaterEqual(T value);
+    R greaterEqual(Queryable query);
     R less(T value);
+    R less(Queryable query);
     R lessEqual(T value);
+    R lessEqual(Queryable query);
 
 }

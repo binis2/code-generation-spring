@@ -20,7 +20,6 @@ package net.binis.codegen.spring.query.executor;
  * #L%
  */
 
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
@@ -737,6 +736,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    public QuerySelectOperation<S, O, R> equal(Queryable query) {
+        subQueryOperation("=", query);
+        return this;
+    }
+
+    @Override
     public QuerySelectOperation<S, O, R> between(T from, T to) {
         stripLast(".");
         operation("between", from);
@@ -759,6 +764,37 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             operation("in", values);
         }
         return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> in(Queryable query) {
+        subQueryOperation("in", query);
+        return this;
+    }
+
+    private void subQueryOperation(String op, Queryable query) {
+        if (nonNull(enveloped)) {
+            if (nonNull(onEnvelop)) {
+                onEnvelop.run();
+                onEnvelop = null;
+            } else {
+                current.append(enveloped);
+            }
+            enveloped = null;
+        }
+        var access = (QueryAccessor) query;
+        var s = query.print();
+        var newAlias = "s" + joins++;
+        var sub = s.replaceAll("\\(" + access.getAccessorAlias() + "\\.", "(" + newAlias + ".")
+                .replaceAll(" " + access.getAccessorAlias() + "\\.", " " + newAlias + ".")
+                .replaceAll(" " + access.getAccessorAlias() + " ", " " + newAlias + " ");
+        for (int i = access.getParams().size(); i > 0; i--) {
+            sub = sub.replaceAll("\\?" + i, "?" + (i + params.size()));
+        }
+        params.addAll(access.getParams());
+        current.append(" ").append(op).append(" (")
+                .append(sub)
+                .append(")) ");
     }
 
     @Override
@@ -811,9 +847,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    public QuerySelectOperation<S, O, R> greater(Queryable query) {
+        subQueryOperation(">", query);
+        return this;
+    }
+
+    @Override
     public QuerySelectOperation<S, O, R> greaterEqual(T value) {
         stripLast(".");
         operation(">=", value);
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> greaterEqual(Queryable query) {
+        subQueryOperation(">=", query);
         return this;
     }
 
@@ -825,9 +873,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    public QuerySelectOperation<S, O, R> less(Queryable query) {
+        subQueryOperation("<", query);
+        return this;
+    }
+
+    @Override
     public QuerySelectOperation<S, O, R> lessEqual(T value) {
         stripLast(".");
         operation("<=", value);
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> lessEqual(Queryable query) {
+        subQueryOperation("<=", query);
         return this;
     }
 
@@ -1127,4 +1187,5 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         mocked = onValue;
         params = new ObservableList(params, onParamAdd);
     }
+
 }
