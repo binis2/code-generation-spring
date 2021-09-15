@@ -21,7 +21,6 @@ package net.binis.codegen.spring.query;
  */
 
 import java.util.Collection;
-import java.util.List;
 
 public interface QueryFunctions<T, R> extends QueryScript<R> {
 
