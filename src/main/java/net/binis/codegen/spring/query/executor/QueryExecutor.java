@@ -30,6 +30,7 @@ import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.util.StringUtils;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
@@ -83,6 +84,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     protected Class joinClass;
     protected String joinField;
+    protected String lastIdentifier;
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -104,6 +106,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
         if (idStart) {
             lastIdStartPos = where.length();
+            lastIdentifier = id;
         }
 
         if (Objects.isNull(enveloped) && idStart) {
@@ -147,6 +150,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
             if (idStart) {
                 lastIdStartPos = where.length();
+                lastIdentifier = id;
             }
 
             if (Objects.isNull(enveloped) && idStart) {
@@ -721,6 +725,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
     }
 
+    private void stripLastOperator() {
+        where.setLength(lastIdStartPos);
+        stripLast(" ");
+        stripLast(" not");
+        stripLast(" ");
+        stripToLastInclude(where, " ");
+        skipNext = where.length() == 0;
+    }
 
     @Override
     public QueryFunctions<Long, QuerySelectOperation<S, O, R>> length() {
@@ -753,12 +765,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @Override
     public QuerySelectOperation<S, O, R> in(Collection<T> values) {
         if (Objects.isNull(values) || values.isEmpty()) {
-            where.setLength(lastIdStartPos);
-            stripLast(" ");
-            stripLast(" not");
-            stripLast(" ");
-            stripToLastInclude(where, " ");
-            skipNext = where.length() == 0;
+            stripLastOperator();
         } else {
             stripLast(".");
             operation("in", values);
@@ -1093,7 +1100,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                         where = new StringBuilder(" ");
                     }
 
-                    where.append(q.getAccessorWhere()).append(' ');
+                    if (q.getAccessorWhere().length() == 0) {
+                        stripLastOperator();
+                    } else {
+                        where.append(q.getAccessorWhere()).append(' ');
+                    }
                 }
 
                 if (Objects.isNull(join)) {
@@ -1121,6 +1132,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch() {
+        joinField = lastIdentifier;
         handleJoin(null, "join fetch");
         if (nonNull(where) && where.length() > 0) {
             stripLast(where, " ");
