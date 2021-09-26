@@ -22,14 +22,11 @@ package net.binis.codegen.spring.query.executor;
 
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.BasePersistenceOperations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.jmx.access.InvalidInvocationException;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Tuple;
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -105,7 +102,7 @@ public class TupleBackedProjection implements InvocationHandler {
             var obj = CodeFactory.lookup(returnType);
             if (nonNull(obj)) {
                 try {
-                    Function<EntityManager, Object> func = (m) -> m.find(obj, convert(id, m.getMetamodel().entity(obj).getIdType().getJavaType()));
+                    Function<EntityManager, Object> func = m -> m.find(obj, convert(id, m.getMetamodel().entity(obj).getIdType().getJavaType()));
                     return withRes.invoke(executor, func);
                 } catch (Exception e) {
                     return new IllegalArgumentException();

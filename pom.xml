@@ -42,12 +42,12 @@
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-context</artifactId>
-			<version>5.2.9.RELEASE</version>
+			<version>5.3.10</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-orm</artifactId>
-			<version>5.2.9.RELEASE</version>
+			<version>5.3.10</version>
 		</dependency>
 		<dependency>
 			<groupId>jakarta.persistence</groupId>
@@ -57,7 +57,7 @@
 		<dependency>
 			<groupId>org.springframework.data</groupId>
 			<artifactId>spring-data-commons</artifactId>
-			<version>2.4.5</version>
+			<version>2.5.5</version>
 		</dependency>
 	</dependencies>
 
