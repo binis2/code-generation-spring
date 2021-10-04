@@ -21,12 +21,11 @@ package net.binis.codegen.spring;
  */
 
 import lombok.extern.slf4j.Slf4j;
-import net.binis.codegen.annotation.Final;
 import net.binis.codegen.exception.GenericCodeGenException;
-import net.binis.codegen.modifier.Modifier;
 import net.binis.codegen.spring.component.ApplicationContextProvider;
 import org.springframework.orm.jpa.EntityManagerFactoryUtils;
 import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -87,6 +86,21 @@ public class BasePersistenceOperations<R> {
             return func.apply(em);
         }
     }
+
+    protected R withNewTransactionRes(Function<EntityManager, R> func) {
+        init();
+        var em = entityManagerProvider.apply(factory);
+        if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
+            log.debug("Attempt to do action outside of open transaction!");
+            return template.execute(s ->
+                    func.apply(entityManagerProvider.apply(factory)));
+        } else {
+            var transactionTemplate = new TransactionTemplate(template.getTransactionManager());
+            transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            return transactionTemplate.execute(s -> func.apply(em));
+        }
+    }
+
 
     private static Function<EntityManagerFactory, EntityManager> defaultEntityManagerProvider() {
         return EntityManagerFactoryUtils::getTransactionalEntityManager;
