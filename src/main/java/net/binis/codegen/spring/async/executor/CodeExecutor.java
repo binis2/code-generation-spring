@@ -62,5 +62,14 @@ public class CodeExecutor {
         });
     }
 
+    public static AsyncExecutor syncExecutor() {
+        return task -> {
+            try {
+                task.run();
+            } catch (Exception e) {
+                log.warn("Failed to execute task!", e);
+            }
+        };
+    }
 
 }

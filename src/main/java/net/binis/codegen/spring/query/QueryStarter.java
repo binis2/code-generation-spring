@@ -41,4 +41,6 @@ public interface QueryStarter<R, S, A, F> {
 
     void transaction(Consumer<QueryStarter<R, S, A, F>> consumer);
 
+    void async(Consumer<QueryStarter<R, S, A, F>> consumer);
+
 }
