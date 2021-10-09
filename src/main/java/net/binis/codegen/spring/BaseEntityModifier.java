@@ -31,7 +31,7 @@ import java.util.function.Function;
 @Slf4j
 public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> implements Modifier<R> {
 
-    private R parent;
+    protected R parent;
 
     @Final
     public R save() {
@@ -67,7 +67,6 @@ public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> imple
     public R transaction(Function<T, R> function) {
         return withRes(manager -> function.apply((T)((Modifiable) manager.merge(parent)).with()));
     }
-
 
     @Override
     public void setObject(R parent) {
