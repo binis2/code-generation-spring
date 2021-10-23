@@ -39,6 +39,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 import static java.util.Objects.nonNull;
 
@@ -50,6 +51,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
+    private Supplier<QueryEmbed> queryName;
     private Class<?> returnClass;
     private Class<?> aggregateClass;
     private Class<?> mapClass;
@@ -82,6 +84,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     private IntSupplier joinSupplier = () -> joins++;
 
+    protected boolean joinFetch;
     protected Class joinClass;
     protected String joinField;
     protected String lastIdentifier;
@@ -91,9 +94,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private Map<String, Object> hints;
     private List<Filter> filters;
     private Filter filter;
+    private int bracketCount;
 
-    public QueryExecutor(Class<?> returnClass) {
+    public QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName) {
         this.returnClass = returnClass;
+        this.queryName = queryName;
         mapClass = returnClass;
     }
 
@@ -333,6 +338,22 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
         return (S) this;
     }
+
+    public QuerySelectOperation _close() {
+        if (bracketCount <= 0) {
+            throw new QueryBuilderException("Closing bracket without opening one!");
+        }
+        bracketCount--;
+        current.append(") ");
+        return this;
+    }
+
+    public Object _open() {
+        bracketCount++;
+        current.append(" (");
+        return this;
+    }
+
 
     @Override
     public QueryCondition<S, O, R> _if(boolean condition, Consumer<QuerySelectOperation<S, O, R>> query) {
@@ -639,9 +660,17 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void buildQuery(StringBuilder query) {
+        if (bracketCount != 0) {
+            throw new QueryBuilderException("Missing closing bracket!");
+        }
+
         if (nonNull(select)) {
             stripLast(select, ",");
             query.append("select ").append(select).append(' ');
+        } else {
+            if (nonNull(join)) {
+                query.append("select ").append(alias).append(' ');
+            }
         }
         if (query.length() == 0 && resultType == QueryProcessor.ResultType.REMOVE) {
             query.append("delete ");
@@ -1132,13 +1161,23 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch(Function<Object, Queryable> joinQuery) {
+        if (joinFetch) {
+            throw new QueryBuilderException("There can be only one join fetch clause in a query!");
+        }
+
         handleJoin(joinQuery, "join fetch");
+        joinFetch = true;
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch() {
+        if (joinFetch) {
+            throw new QueryBuilderException("There can be only one join fetch clause in a query!");
+        }
+
         joinField = lastIdentifier;
+        joinFetch = true;
         handleJoin(null, "join fetch");
         if (nonNull(where) && where.length() > 0) {
             stripLast(where, " ");
@@ -1204,6 +1243,47 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public void setMocked(Function<Object, Object> onValue, Function<Object, Object> onParamAdd) {
         mocked = onValue;
         params = new ObservableList(params, onParamAdd);
+    }
+
+    protected Object getQueryName() {
+        var result = queryName.get();
+        result.setParent(alias, this);
+        return result;
+    }
+
+    public Object lower() {
+        doLower();
+        return getQueryName();
+    }
+
+    public Object not() {
+        doNot();
+        return getQueryName();
+    }
+
+    public Object replace(String what, String withWhat) {
+        doReplace(what, withWhat);
+        return getQueryName();
+    }
+
+    public Object substring(int start) {
+        doSubstring(start);
+        return getQueryName();
+    }
+
+    public Object substring(int start, int len) {
+        doSubstring(start, len);
+        return getQueryName();
+    }
+
+    public Object trim() {
+        doTrim();
+        return getQueryName();
+    }
+
+    public Object upper() {
+        doUpper();
+        return getQueryName();
     }
 
 }

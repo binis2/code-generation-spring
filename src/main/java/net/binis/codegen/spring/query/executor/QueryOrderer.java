@@ -218,6 +218,16 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         return executor.print();
     }
 
+    public Object script(String script) {
+        executor.script(script);
+        return this;
+    }
+
+    public Object _open() {
+        executor._open();
+        return this;
+    }
+
     @Override
     public Object sum() {
         executor.sum();

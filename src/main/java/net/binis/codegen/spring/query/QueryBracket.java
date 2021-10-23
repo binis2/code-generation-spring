@@ -20,11 +20,8 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-import java.util.function.Consumer;
+public interface QueryBracket<R> {
 
-public interface QuerySelectOperation<S, O, R> extends QueryExecute<R>, QueryOrderStart<O> {
-    S and();
-    S or();
-    QuerySelectOperation<S, O, R> _close();
-    QueryCondition<S, O, R> _if(boolean condition, Consumer<QuerySelectOperation<S, O, R>> query);
+    R _open();
+
 }

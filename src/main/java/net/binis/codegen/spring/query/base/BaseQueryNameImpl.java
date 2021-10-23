@@ -20,10 +20,11 @@ package net.binis.codegen.spring.query.base;
  * #L%
  */
 
+import net.binis.codegen.spring.query.QueryBracket;
 import net.binis.codegen.spring.query.QueryScript;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
 
-public class BaseQueryNameImpl<T> implements QueryScript<T> {
+public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
 
     protected QueryExecutor executor;
 
@@ -37,7 +38,13 @@ public class BaseQueryNameImpl<T> implements QueryScript<T> {
 
     @Override
     public T script(String script) {
-        return (T) ((QueryScript) executor).script(script);
+        return (T) executor.script(script);
     }
+
+    @Override
+    public T _open() {
+        return (T) executor._open();
+    }
+
 
 }

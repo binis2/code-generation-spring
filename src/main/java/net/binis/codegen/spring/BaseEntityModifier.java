@@ -63,6 +63,12 @@ public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> imple
         return parent;
     }
 
+    @Final
+    public R detach() {
+        with(manager -> manager.detach(parent));
+        return parent;
+    }
+
     @Final(imports = {"java.util.function.Function"}, description = "Function<{R}, {T}> function")
     public R transaction(Function<T, R> function) {
         return withRes(manager -> function.apply((T)((Modifiable) manager.merge(parent)).with()));
