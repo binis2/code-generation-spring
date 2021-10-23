@@ -20,11 +20,16 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
+import java.util.Collection;
+
 public interface QueryCollectionFunctions<T, R> {
 
     QueryFunctions<Long, R> size();
     R contains(T value);
     R notContains(T value);
+    R containsAll(Collection<T> list);
+    R containsOne(Collection<T> list);
+    R containsNone(Collection<T> list);
     R isEmpty();
     R isNotEmpty();
     R joinFetch();

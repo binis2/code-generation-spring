@@ -1055,6 +1055,37 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    public QuerySelectOperation<S, O, R> containsAll(Collection<T> list) {
+        handleContainsCollection(list, " member of ", " and ");
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> containsOne(Collection<T> list) {
+        handleContainsCollection(list, " member of ", " or ");
+        return this;
+    }
+
+    @Override
+    public QuerySelectOperation<S, O, R> containsNone(Collection<T> list) {
+        handleContainsCollection(list, " not member of ", " and ");
+        return this;
+    }
+
+    private void handleContainsCollection(Collection<T> list, String member, String oper) {
+        var idx = current.lastIndexOf("(");
+        var col = current.substring(idx + 1);
+        current.setLength(idx + 1);
+        for (var val : list) {
+            params.add(val);
+            current.append("?").append(params.size()).append(member).append(col).append(oper);
+        }
+        stripLast(oper);
+        current.append(")");
+
+    }
+
+    @Override
     public QuerySelectOperation<S, O, R> isEmpty() {
         where.append(" is empty)");
         return this;
