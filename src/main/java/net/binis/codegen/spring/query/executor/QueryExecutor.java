@@ -69,6 +69,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private int lastIdStartPos;
     private boolean skipNext;
     private boolean fields;
+    private boolean distinct;
+    private boolean selectOrAggregate;
 
     private Function<Object, Object> mocked;
 
@@ -146,6 +148,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public QueryExecutor<T, S, O, R, A, F> identifier(String id) {
         if (fields) {
             select.append(alias).append(".").append(id).append(",");
+            fieldsCount++;
         } else {
             if (Objects.isNull(where)) {
                 whereStart();
@@ -287,7 +290,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
 
         fieldsCount++;
-        select.append(alias).append(".").append(id).append("),");
+        select.append(alias).append(".").append(id).append(distinct ? " " : ")").append(",");
+        distinct = false;
         return aggregate;
     }
 
@@ -304,6 +308,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         this.aggregate = aggregate;
         select = new StringBuilder();
         current = select;
+        selectOrAggregate = true;
         return aggregate;
     }
 
@@ -375,6 +380,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         select = new StringBuilder();
         current = select;
         fields = true;
+        selectOrAggregate = true;
         return (F) this;
     }
 
@@ -654,6 +660,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         prepare();
         if (nonNull(aggregateClass) && fieldsCount == 1) {
             returnClass = aggregateClass;
+        } else if (selectOrAggregate) {
+            returnClass = Tuple.class;
         }
         return withRes(manager ->
                 QueryProcessor.process(this, manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
@@ -1018,6 +1026,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
         return aggregate;
     }
+
+    @Override
+    public Object distinct() {
+        select.append("distinct ");
+        distinct = true;
+        return aggregate;
+    }
+
 
     public void aggregateFunction(String sum) {
         select.append(sum).append("(");

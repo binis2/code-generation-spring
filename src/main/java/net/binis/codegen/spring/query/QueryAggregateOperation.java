@@ -27,5 +27,6 @@ public interface QueryAggregateOperation<R> {
     R min();
     R max();
     R avg();
+    R distinct();
 
 }

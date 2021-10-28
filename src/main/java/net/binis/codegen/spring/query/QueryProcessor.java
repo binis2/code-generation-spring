@@ -34,7 +34,6 @@ import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 
 import javax.persistence.*;
-
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
@@ -182,10 +181,18 @@ public class QueryProcessor {
                     return q.getResultList();
                 }
             case PAGE:
-                if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
-                    return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
+                if (Tuple.class.equals(returnClass)) {
+                    if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                        return new PageImpl((List) q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList()));
+                    } else {
+                        return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
+                    }
                 } else {
-                    return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
+                    if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
+                        return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
+                    } else {
+                        return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
+                    }
                 }
             case REMOVE:
             case EXECUTE:
@@ -243,6 +250,11 @@ public class QueryProcessor {
     }
 
     private static Object createProxy(Tuple tuple, Class mapClass, QueryExecutor executor) {
+        var elements = tuple.getElements();
+        if (elements.size() == 1 && nonNull(tuple.get(0)) && mapClass.isInstance(tuple.get(0))) {
+            return tuple.get(0);
+        }
+
         return Proxy.newProxyInstance(
                 mapClass.getClassLoader(),
                 new Class[]{mapClass},

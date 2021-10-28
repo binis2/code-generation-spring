@@ -259,6 +259,13 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public Object distinct() {
+        executor.distinct();
+        return this;
+    }
+
+
+    @Override
     public Object desc() {
         return null;
     }
