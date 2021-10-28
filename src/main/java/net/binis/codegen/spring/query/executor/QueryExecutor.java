@@ -1092,13 +1092,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         var idx = current.lastIndexOf("(");
         var col = current.substring(idx + 1);
         current.setLength(idx + 1);
-        for (var val : list) {
-            params.add(val);
-            current.append("?").append(params.size()).append(member).append(col).append(oper);
+        if (list.isEmpty()) {
+            current.append("0 = 0");
+        } else {
+            for (var val : list) {
+                params.add(val);
+                current.append("?").append(params.size()).append(member).append(col).append(oper);
+            }
+            stripLast(oper);
         }
-        stripLast(oper);
         current.append(")");
-
     }
 
     @Override
