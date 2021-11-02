@@ -328,6 +328,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public S and() {
         if (!skipNext) {
             current.append(" and ");
+            brackets = false;
         } else {
             skipNext = false;
         }
@@ -338,6 +339,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public S or() {
         if (!skipNext) {
             current.append(" or ");
+            brackets = false;
         } else {
             skipNext = false;
         }
