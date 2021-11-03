@@ -1094,7 +1094,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         var idx = current.lastIndexOf("(");
         var col = current.substring(idx + 1);
         current.setLength(idx + 1);
-        if (list.isEmpty()) {
+        if (Objects.isNull(list) || list.isEmpty()) {
             current.append("0 = 0");
         } else {
             for (var val : list) {
