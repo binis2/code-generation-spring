@@ -183,7 +183,7 @@ public class QueryProcessor {
             case PAGE:
                 if (Tuple.class.equals(returnClass)) {
                     if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
-                        return new PageImpl((List) q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList()));
+                        return new PageImpl((List) q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
                     } else {
                         return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
                     }

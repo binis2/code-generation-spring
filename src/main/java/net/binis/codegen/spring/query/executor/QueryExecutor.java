@@ -494,11 +494,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public void paginated(Pageable pageable, Consumer<R> consumer) {
-        for (var page = page(pageable); !page.isEmpty(); page = page(page.nextPageable())) {
+        var page = page(pageable);
+        while (!page.isEmpty()) {
             page.getContent().forEach(consumer);
-            if (page.getContent().size() < pageable.getPageSize() || !page.hasNext()) {
+            if (page.getContent().size() < pageable.getPageSize()) {
                 break;
             }
+            page = page(page.nextPageable());
         }
     }
 
@@ -509,11 +511,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public <V> void paginated(Pageable pageable, Class<V> cls, Consumer<V> consumer) {
-        for (var page = page(pageable, cls); !page.isEmpty(); page(page.nextPageable(), cls)) {
+        var page = page(pageable, cls);
+        while (!page.isEmpty()) {
             page.getContent().forEach(consumer);
-            if (page.getContent().size() < pageable.getPageSize() || !page.hasNext()) {
+            if (page.getContent().size() < pageable.getPageSize()) {
                 break;
             }
+            page = page(page.nextPageable(), cls);
         }
     }
 
