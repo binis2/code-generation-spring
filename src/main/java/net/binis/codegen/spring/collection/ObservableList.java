@@ -24,14 +24,14 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 public class ObservableList<T> implements List<T> {
 
     private final List<T> list;
-    private final Function<T, T> onValueAdd;
+    private final UnaryOperator<T> onValueAdd;
 
-    public ObservableList(List<T> list, Function<T, T> onValueAdd) {
+    public ObservableList(List<T> list, UnaryOperator<T> onValueAdd) {
         this.list = list;
         this.onValueAdd = onValueAdd;
     }
@@ -51,6 +51,7 @@ public class ObservableList<T> implements List<T> {
         return list.contains(o);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Iterator iterator() {
         return list.iterator();
@@ -71,11 +72,13 @@ public class ObservableList<T> implements List<T> {
         return list.remove(o);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public boolean addAll(Collection c) {
         return list.addAll(c);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public boolean addAll(int index, Collection c) {
         return list.addAll(index, c);
