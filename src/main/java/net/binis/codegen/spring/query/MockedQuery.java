@@ -20,10 +20,10 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 public interface MockedQuery {
 
-    void setMocked(Function<Object, Object> onValue, Function<Object, Object> onParamAdd);
+    void setMocked(UnaryOperator<Object> onValue, UnaryOperator<Object> onParamAdd);
 
 }

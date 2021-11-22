@@ -36,10 +36,7 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.IntSupplier;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 import static java.util.Objects.nonNull;
 
@@ -260,6 +257,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     public void operation(String op, Object value) {
+        if (nonNull(mocked)) {
+            value = mocked.apply(value);
+        }
+
         params.add(value);
         if (nonNull(enveloped)) {
             if (nonNull(onEnvelop)) {
@@ -1292,7 +1293,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public void setMocked(Function<Object, Object> onValue, Function<Object, Object> onParamAdd) {
+    public void setMocked(UnaryOperator<Object> onValue, UnaryOperator<Object> onParamAdd) {
         mocked = onValue;
         params = new ObservableList(params, onParamAdd);
     }
