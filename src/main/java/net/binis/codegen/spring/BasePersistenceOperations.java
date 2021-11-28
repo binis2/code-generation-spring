@@ -48,6 +48,11 @@ public class BasePersistenceOperations<R> {
         entityManagerProvider = provider;
     }
 
+    public static EntityManager getEntityManager() {
+        return entityManagerProvider.apply(factory);
+    }
+
+
     private static void init() {
         if (isNull(factory)) {
             var context = ApplicationContextProvider.getApplicationContext();
@@ -62,11 +67,11 @@ public class BasePersistenceOperations<R> {
 
     protected void with(Consumer<EntityManager> func) {
         init();
-        var em = entityManagerProvider.apply(factory);
+        var em = getEntityManager();
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
             log.debug("Attempt to do action outside of open transaction!");
             template.execute(s -> {
-                var manager = entityManagerProvider.apply(factory);
+                var manager = getEntityManager();
                 func.accept(manager);
                 return null;
             });
@@ -77,11 +82,11 @@ public class BasePersistenceOperations<R> {
 
     protected R withRes(Function<EntityManager, R> func) {
         init();
-        var em = entityManagerProvider.apply(factory);
+        var em = getEntityManager();
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
             log.debug("Attempt to do action outside of open transaction!");
             return template.execute(s ->
-                func.apply(entityManagerProvider.apply(factory)));
+                func.apply(getEntityManager()));
         } else {
             return func.apply(em);
         }
@@ -89,11 +94,11 @@ public class BasePersistenceOperations<R> {
 
     protected R withNewTransactionRes(Function<EntityManager, R> func) {
         init();
-        var em = entityManagerProvider.apply(factory);
+        var em = getEntityManager();
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
             log.debug("Attempt to do action outside of open transaction!");
             return template.execute(s ->
-                    func.apply(entityManagerProvider.apply(factory)));
+                    func.apply(getEntityManager()));
         } else {
             var transactionTemplate = new TransactionTemplate(template.getTransactionManager());
             transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -101,8 +106,7 @@ public class BasePersistenceOperations<R> {
         }
     }
 
-
-    private static Function<EntityManagerFactory, EntityManager> defaultEntityManagerProvider() {
+    public static Function<EntityManagerFactory, EntityManager> defaultEntityManagerProvider() {
         return EntityManagerFactoryUtils::getTransactionalEntityManager;
     }
 
