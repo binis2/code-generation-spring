@@ -40,6 +40,7 @@ import java.util.function.*;
 
 import static java.util.Objects.nonNull;
 
+@SuppressWarnings("unchecked")
 @Slf4j
 public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
@@ -325,6 +326,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public S and() {
         if (!skipNext) {
@@ -336,6 +338,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (S) this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public S or() {
         if (!skipNext) {
@@ -347,7 +350,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (S) this;
     }
 
-    public QuerySelectOperation _close() {
+    public QuerySelectOperation<S, O, R> _close() {
         if (bracketCount <= 0) {
             throw new QueryBuilderException("Closing bracket without opening one!");
         }
@@ -372,12 +375,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     public S by() {
         whereStart();
         resultType = QueryProcessor.ResultType.SINGLE;
         return (S) this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public F select() {
         select = new StringBuilder();
@@ -416,6 +421,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (long) execute();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
@@ -423,6 +429,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (Optional) execute();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> Optional<V> top(Class<V> cls) {
         mapClass = cls;
@@ -452,18 +459,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                 transaction(consumer));
     }
 
+    @SuppressWarnings("unchecked")
     public List<R> top(long records) {
         pageable = PageRequest.of(0, (int) records);
         resultType = QueryProcessor.ResultType.LIST;
         return (List) execute();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> List<V> top(long records, Class<V> cls) {
         mapClass = cls;
         return (List) top(records);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Page<R> page(Pageable pageable) {
         resultType = QueryProcessor.ResultType.PAGE;
@@ -471,6 +481,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (Page) execute();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> Page<V> page(Pageable pageable, Class<V> cls) {
         mapClass = cls;
@@ -482,6 +493,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return page(PageRequest.of(0, (int) pageSize));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> Page<V> page(long pageSize, Class<V> cls) {
         mapClass = cls;
@@ -556,11 +568,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Optional<Tuple> tuple() {
         return (Optional) tuple(fieldsCount == 1 ? mapClass : Tuple.class);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Optional tuple(Class cls) {
         mapClass = cls;
@@ -569,6 +583,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<Tuple> tuples() {
         return (List) tuples(fieldsCount == 1 ? mapClass : Tuple.class);
     }
@@ -582,6 +597,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public List tuples(Class cls) {
         resultType = QueryProcessor.ResultType.TUPLES;
@@ -709,17 +725,20 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> List<V> list(Class<V> cls) {
         mapClass = cls;
         return (List) list();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public R ensure() {
         return get().orElseGet(() -> (R) EntityCreator.create(returnClass));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Optional<R> get() {
         if (QueryProcessor.ResultType.UNKNOWN.equals(resultType)) {
@@ -728,12 +747,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (Optional) execute();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> Optional<V> get(Class<V> cls) {
         mapClass = cls;
         return (Optional<V>) get();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public List<R> list() {
         resultType = QueryProcessor.ResultType.LIST;
@@ -780,6 +801,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         skipNext = where.length() == 0;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public QueryFunctions<Long, QuerySelectOperation<S, O, R>> length() {
         backEnvelop("length");
@@ -1046,6 +1068,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public QueryFunctions<Long, QuerySelectOperation<S, O, R>> size() {
         backEnvelop("size");
@@ -1145,6 +1168,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     private void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
         stripToLastInclude(where, " (");
         if (nonNull(joinQuery)) {
@@ -1292,6 +1316,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         this.params = params;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void setMocked(UnaryOperator<Object> onValue, UnaryOperator<Object> onParamAdd) {
         mocked = onValue;

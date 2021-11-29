@@ -158,6 +158,7 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         return executor.tuple();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> Optional<Class<V>> tuple(Class<V> cls) {
         return executor.tuple(cls);
@@ -168,6 +169,7 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         return executor.tuples();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <V> List<V> tuples(Class<V> cls) {
         return executor.tuples(cls);

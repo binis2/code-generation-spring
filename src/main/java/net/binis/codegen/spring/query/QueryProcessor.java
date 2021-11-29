@@ -103,6 +103,7 @@ public class QueryProcessor {
         return (R) processor.process(executor, manager, query, params, resultType, returnClass, mapClass, isNative, modifying, pageable, flush, lock, hints, filters);
     }
 
+    @SuppressWarnings("unchecked")
     private static Object defaultProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
 
         if (BeanUtils.isSimpleValueType(mapClass)) {

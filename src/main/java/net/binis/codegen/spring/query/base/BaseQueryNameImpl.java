@@ -36,11 +36,13 @@ public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
         this.executor.embedded(name);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public T script(String script) {
         return (T) executor.script(script);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public T _open() {
         return (T) executor._open();

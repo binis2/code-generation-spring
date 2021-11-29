@@ -51,9 +51,8 @@ public class ObservableList<T> implements List<T> {
         return list.contains(o);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public Iterator iterator() {
+    public Iterator<T> iterator() {
         return list.iterator();
     }
 
