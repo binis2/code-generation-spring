@@ -417,7 +417,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public long count() {
         resultType = QueryProcessor.ResultType.COUNT;
         mapClass = Long.class;
-        select = new StringBuilder("count(*)");
+        if (Objects.isNull(select)) {
+            select = new StringBuilder("count(*)");
+        } else {
+            if (select.toString().equals("distinct u,")) {
+                select = new StringBuilder("count(distinct u)");
+            }
+        }
         return (long) execute();
     }
 
