@@ -35,14 +35,19 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 @Slf4j
 public class BasePersistenceOperations<R> {
+
+    public static final String NO_TRANSACTION_DEBUG_WARNING = "Attempt to do action outside of open transaction!";
 
     private static EntityManagerFactory factory;
     private static TransactionTemplate template;
 
     private static Function<EntityManagerFactory, EntityManager> entityManagerProvider = defaultEntityManagerProvider();
+
+    protected R parent;
 
     public static void setEntityManagerProvider(Function<EntityManagerFactory, EntityManager> provider) {
         entityManagerProvider = provider;
@@ -69,10 +74,12 @@ public class BasePersistenceOperations<R> {
         init();
         var em = getEntityManager();
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.debug("Attempt to do action outside of open transaction!");
+            log.debug(NO_TRANSACTION_DEBUG_WARNING);
             template.execute(s -> {
-                var manager = getEntityManager();
-                func.accept(manager);
+                checkMerge(m -> {
+                    func.accept(m);
+                    return null;
+                });
                 return null;
             });
         } else {
@@ -84,21 +91,29 @@ public class BasePersistenceOperations<R> {
         init();
         var em = getEntityManager();
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.debug("Attempt to do action outside of open transaction!");
+            log.debug(NO_TRANSACTION_DEBUG_WARNING);
             return template.execute(s ->
-                func.apply(getEntityManager()));
+                checkMerge(func));
         } else {
             return func.apply(em);
         }
+    }
+
+    protected R checkMerge(Function<EntityManager, R> func) {
+        var manager = getEntityManager();
+        if (nonNull(parent)) {
+            parent = manager.merge(parent);
+        }
+        return func.apply(manager);
     }
 
     protected R withNewTransactionRes(Function<EntityManager, R> func) {
         init();
         var em = getEntityManager();
         if (isNull(em) || !TransactionSynchronizationManager.isActualTransactionActive()) {
-            log.debug("Attempt to do action outside of open transaction!");
+            log.debug(NO_TRANSACTION_DEBUG_WARNING);
             return template.execute(s ->
-                    func.apply(getEntityManager()));
+                    checkMerge(func));
         } else {
             var transactionTemplate = new TransactionTemplate(template.getTransactionManager());
             transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);

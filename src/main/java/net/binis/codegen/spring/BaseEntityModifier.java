@@ -31,8 +31,6 @@ import java.util.function.Function;
 @Slf4j
 public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> implements Modifier<R> {
 
-    protected R parent;
-
     @Final
     public R save() {
         with(manager -> manager.persist(parent));

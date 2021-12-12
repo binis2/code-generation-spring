@@ -1168,6 +1168,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
+    public QuerySelectOperation<S, O, R> leftJoin(Function<Object, Queryable> joinQuery) {
+        handleJoin(joinQuery, "left join");
+        return this;
+    }
+
+
     @SuppressWarnings("unchecked")
     private void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
         stripToLastInclude(where, " (");
@@ -1216,6 +1222,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                         stripLastOperator();
                     } else {
                         where.append(q.getAccessorWhere()).append(' ');
+                    }
+                }
+
+                if (Objects.isNull(select)) {
+                    select = new StringBuilder();
+                    if (DEFAULT_ALIAS.equals(alias)) {
+                        select.append("distinct ").append(alias).append(",");
                     }
                 }
 
