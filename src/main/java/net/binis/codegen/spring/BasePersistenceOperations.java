@@ -62,7 +62,7 @@ public class BasePersistenceOperations<R> {
         if (isNull(factory)) {
             var context = ApplicationContextProvider.getApplicationContext();
             if (isNull(context)) {
-                throw new GenericCodeGenException("Not in spring context!");
+                throw new GenericCodeGenException("Not in spring context!\nUse '@ExtendWith(CodeGenExtension.class)' if you are in running unit test!");
             }
             JpaTransactionManager tm = context.getBean(JpaTransactionManager.class);
             factory = tm.getEntityManagerFactory();
