@@ -87,7 +87,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     protected boolean joinFetch;
     protected Class joinClass;
     protected String joinField;
-    protected String lastIdentifier;
+    protected StringBuilder lastIdentifier;
 
     private FlushModeType flushMode;
     private LockModeType lockMode;
@@ -111,7 +111,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
         if (idStart) {
             lastIdStartPos = where.length();
-            lastIdentifier = id;
+            lastIdentifier = new StringBuilder(id);
         }
 
         if (Objects.isNull(enveloped) && idStart) {
@@ -156,7 +156,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
             if (idStart) {
                 lastIdStartPos = where.length();
-                lastIdentifier = id;
+                lastIdentifier = new StringBuilder(id);
             }
 
             if (Objects.isNull(enveloped) && idStart) {
@@ -180,9 +180,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public void embedded(String id) {
         if (current.length() > 0 && current.charAt(current.length() - 1) == '.') {
             current.append(id).append(".");
+            if (nonNull(lastIdentifier)) {
+                lastIdentifier.append(".").append(id);
+            }
         } else {
             if (current == where) {
                 lastIdStartPos = where.length();
+                lastIdentifier = new StringBuilder(id);
             }
             if (Objects.isNull(enveloped)) {
                 current.append(" (");
@@ -1257,10 +1261,6 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch(Function<Object, Queryable> joinQuery) {
-        if (joinFetch) {
-            throw new QueryBuilderException("There can be only one join fetch clause in a query!");
-        }
-
         handleJoin(joinQuery, "join fetch");
         joinFetch = true;
         return this;
@@ -1268,13 +1268,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch() {
-        if (joinFetch) {
-            throw new QueryBuilderException("There can be only one join fetch clause in a query!");
-        }
+        return internalFetch("join fetch");
+    }
 
-        joinField = lastIdentifier;
+    @Override
+    public QuerySelectOperation<S, O, R> leftJoinFetch() {
+        return internalFetch("left join fetch");
+    }
+
+    private QuerySelectOperation<S, O, R> internalFetch(String clause) {
+        joinField = lastIdentifier.toString();
         joinFetch = true;
-        handleJoin(null, "join fetch");
+        handleJoin(null, clause);
         if (nonNull(where) && where.length() > 0) {
             stripLast(where, " ");
             stripToLast(where, " ");

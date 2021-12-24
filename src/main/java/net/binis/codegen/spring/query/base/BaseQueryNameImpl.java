@@ -22,6 +22,7 @@ package net.binis.codegen.spring.query.base;
 
 import net.binis.codegen.spring.query.QueryBracket;
 import net.binis.codegen.spring.query.QueryScript;
+import net.binis.codegen.spring.query.QuerySelectOperation;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
 
 public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
@@ -34,6 +35,14 @@ public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
         this.name = name;
         this.executor = (QueryExecutor) executor;
         this.executor.embedded(name);
+    }
+
+    public QuerySelectOperation fetch() {
+        return executor.joinFetch();
+    }
+
+    public QuerySelectOperation leftFetch() {
+        return executor.leftJoinFetch();
     }
 
     @SuppressWarnings("unchecked")
