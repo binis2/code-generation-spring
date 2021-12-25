@@ -36,7 +36,9 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.*;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 
@@ -45,6 +47,7 @@ import static java.util.Objects.nonNull;
 public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
     private static final String DEFAULT_ALIAS = "u";
+    private static final Map<Class<?>, List<String>> projections = new ConcurrentHashMap<>();
 
     private int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
@@ -145,7 +148,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     public QueryExecutor<T, S, O, R, A, F> identifier(String id) {
         if (fields) {
-            select.append(alias).append(".").append(id).append(",");
+            select.append(alias).append(".").append(id).append(" as ").append(id).append(",");
             fieldsCount++;
         } else {
             if (Objects.isNull(where)) {
@@ -385,6 +388,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         resultType = QueryProcessor.ResultType.SINGLE;
         return (S) this;
     }
+
+    public S by(Class<?> projection) {
+        buildProjection(projection);
+        return by();
+    }
+
 
     @SuppressWarnings("unchecked")
     @Override
@@ -754,6 +763,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         if (QueryProcessor.ResultType.UNKNOWN.equals(resultType)) {
             resultType = QueryProcessor.ResultType.SINGLE;
         }
+
+        if (mapClass.equals(returnClass) && nonNull(select)) {
+            resultType = QueryProcessor.ResultType.TUPLE;
+        }
+
         return (Optional) execute();
     }
 
@@ -767,7 +781,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @SuppressWarnings("unchecked")
     @Override
     public List<R> list() {
-        resultType = QueryProcessor.ResultType.LIST;
+        if (mapClass.equals(returnClass) && nonNull(select)) {
+            resultType = QueryProcessor.ResultType.TUPLES;
+        } else {
+            resultType = QueryProcessor.ResultType.LIST;
+        }
         return (List) execute();
     }
 
@@ -1387,5 +1405,35 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         doUpper();
         return getQueryName();
     }
+
+    public void buildProjection(Class<?> projection) {
+        var list = projections.computeIfAbsent(projection, c -> calcProjection(projection));
+        if (!list.isEmpty()) {
+            select = new StringBuilder(list.stream().collect(Collectors.joining(",", alias + ".", "")));
+        } else {
+            log.warn("Projection ({}) did not produce any fields!", projection.getCanonicalName());
+        }
+    }
+
+    protected List<String> calcProjection(Class<?> projection) {
+        if (!projection.isInterface()) {
+            throw new QueryBuilderException("Projection must be interface!");
+        }
+
+        return calcProjection(projection, new ArrayList<>());
+    }
+
+    protected List<String> calcProjection(Class<?> projection, List<String> list) {
+        for (var inh : projection.getInterfaces()) {
+
+        }
+
+        for (var method : projection.getDeclaredMethods()) {
+
+        }
+
+        return null;
+    }
+
 
 }

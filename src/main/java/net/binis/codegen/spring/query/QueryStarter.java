@@ -27,6 +27,8 @@ public interface QueryStarter<R, S, A, F> {
 
     S by();
 
+    S by(Class<?> projection);
+
     A aggregate();
 
     F select();

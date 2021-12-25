@@ -56,7 +56,7 @@ public class TupleBackedProjection implements InvocationHandler {
         this.executor = executor;
     }
 
-    private static String getFieldName(String name) {
+    private static String getNativeFieldName(String name) {
         var n = new StringBuilder(name);
         var res = new StringBuilder();
 
@@ -81,7 +81,7 @@ public class TupleBackedProjection implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
         if (method.getName().startsWith("get") || method.getName().startsWith("is")) {
-            var field = getFieldName(method.getName());
+            var field = getNativeFieldName(method.getName());
             try {
                 return convert(tuple.get(field), method.getReturnType());
             } catch (IllegalArgumentException e) {
