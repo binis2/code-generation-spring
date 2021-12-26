@@ -56,7 +56,7 @@ public class TupleBackedProjection implements InvocationHandler {
         this.executor = executor;
     }
 
-    private static String getNativeFieldName(String name) {
+    static String getNativeFieldName(String name) {
         var n = new StringBuilder(name);
         var res = new StringBuilder();
 
@@ -77,6 +77,18 @@ public class TupleBackedProjection implements InvocationHandler {
 
         return res.toString();
     }
+
+    static String getFieldName(String name) {
+        var start = 3;
+        if (name.charAt(0) == 'i') {
+            start = 2;
+        }
+
+        var result = new StringBuilder(name.substring(start));
+        result.setCharAt(0, Character.toLowerCase(result.charAt(0)));
+        return result.toString();
+    }
+
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {

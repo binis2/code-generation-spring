@@ -31,10 +31,12 @@ import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.util.Pair;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.*;
@@ -47,7 +49,7 @@ import static java.util.Objects.nonNull;
 public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
     private static final String DEFAULT_ALIAS = "u";
-    private static final Map<Class<?>, List<String>> projections = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
 
     private int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
@@ -1407,9 +1409,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     public void buildProjection(Class<?> projection) {
-        var list = projections.computeIfAbsent(projection, c -> calcProjection(projection));
+        var list = projections.computeIfAbsent(returnClass, c -> new HashMap<>())
+                .computeIfAbsent(projection, c -> calcProjection(projection));
+
         if (!list.isEmpty()) {
-            select = new StringBuilder(list.stream().collect(Collectors.joining(",", alias + ".", "")));
+            select = new StringBuilder(list.stream().collect(Collectors.joining("," + alias + ".", alias + ".", "")));
         } else {
             log.warn("Projection ({}) did not produce any fields!", projection.getCanonicalName());
         }
@@ -1420,20 +1424,64 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             throw new QueryBuilderException("Projection must be interface!");
         }
 
-        return calcProjection(projection, new ArrayList<>());
+        var list = calcProjection(projection, new ArrayList<>());
+
+        mapProperties(returnClass, list);
+
+        return list.stream().filter(s -> s.contains(" as ")).collect(Collectors.toList());
     }
 
     protected List<String> calcProjection(Class<?> projection, List<String> list) {
         for (var inh : projection.getInterfaces()) {
-
+            calcProjection(inh, list);
         }
 
         for (var method : projection.getDeclaredMethods()) {
-
+            if (method.getParameters().length == 0 && !void.class.equals(method.getReturnType()) && isGetter(method)) {
+                list.add(method.getName());
+            }
         }
 
-        return null;
+        return list;
     }
 
+    private boolean isGetter(Method method) {
+        var name = method.getName();
+        return (name.startsWith("get") && name.length() > 3) ||
+                (name.startsWith("is") && name.length() > 2);
+    }
+
+    private void mapProperties(Class<?> cls, List<String> list) {
+        for (var inh : cls.getInterfaces()) {
+            mapProperties(inh, list);
+        }
+
+        for (var i = 0; i < list.size(); i++) {
+            var field = getFieldName(cls, list.get(i), "");
+            if (nonNull(field)) {
+                list.set(i, field + " as " + TupleBackedProjection.getFieldName(list.get(i)));
+            }
+        }
+    }
+
+    private String getFieldName(Class<?> cls, String methodName, String prefix) {
+        if (!methodName.contains(" as ")) {
+            try {
+                var method = cls.getDeclaredMethod(methodName);
+                return prefix + TupleBackedProjection.getFieldName(methodName);
+            } catch (NoSuchMethodException e) {
+                var method = Arrays.stream(cls.getDeclaredMethods())
+                        .filter(m -> m.getParameters().length == 0 && methodName.startsWith(m.getName()))
+                        .findFirst();
+                if (method.isPresent()) {
+                    var name = methodName.charAt(0) == 'i' ?
+                            "is" + methodName.substring(method.get().getName().length()) :
+                            "get" + methodName.substring(method.get().getName().length());
+                    return getFieldName(method.get().getReturnType(), name,prefix + TupleBackedProjection.getNativeFieldName(method.get().getName()) + ".");
+                }
+            }
+        }
+        return null;
+    }
 
 }
