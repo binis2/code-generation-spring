@@ -441,12 +441,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (long) execute();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
         pageable = PageRequest.of(0, 1);
-        return (Optional) get();
+        return get();
     }
 
     @SuppressWarnings("unchecked")
@@ -479,11 +478,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                 transaction(consumer));
     }
 
-    @SuppressWarnings("unchecked")
     public List<R> top(long records) {
         pageable = PageRequest.of(0, (int) records);
-        resultType = QueryProcessor.ResultType.LIST;
-        return (List) execute();
+        return list();
     }
 
     @SuppressWarnings("unchecked")
