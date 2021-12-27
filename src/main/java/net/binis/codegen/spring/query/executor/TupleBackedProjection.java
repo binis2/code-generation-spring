@@ -56,7 +56,7 @@ public class TupleBackedProjection implements InvocationHandler {
         this.executor = executor;
     }
 
-    private static String getFieldName(String name) {
+    static String getNativeFieldName(String name) {
         var n = new StringBuilder(name);
         var res = new StringBuilder();
 
@@ -78,6 +78,18 @@ public class TupleBackedProjection implements InvocationHandler {
         return res.toString();
     }
 
+    static String getFieldName(String name) {
+        var start = 3;
+        if (name.charAt(0) == 'i') {
+            start = 2;
+        }
+
+        var result = new StringBuilder(name.substring(start));
+        result.setCharAt(0, Character.toLowerCase(result.charAt(0)));
+        return result.toString();
+    }
+
+
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
         if (method.getName().startsWith("get") || method.getName().startsWith("is")) {
@@ -85,12 +97,16 @@ public class TupleBackedProjection implements InvocationHandler {
             try {
                 return convert(tuple.get(field), method.getReturnType());
             } catch (IllegalArgumentException e) {
+                field = getNativeFieldName(method.getName());
                 try {
-                    return processSubEntity(tuple.get(field + "_id"), method.getReturnType());
-                } catch (IllegalArgumentException ex) {
-                    throw e;
+                    return convert(tuple.get(field), method.getReturnType());
+                } catch (IllegalArgumentException exc) {
+                    try {
+                        return processSubEntity(tuple.get(field + "_id"), method.getReturnType());
+                    } catch (IllegalArgumentException ex) {
+                        throw exc;
+                    }
                 }
-
             }
         }
 

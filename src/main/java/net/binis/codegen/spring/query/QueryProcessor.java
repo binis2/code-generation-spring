@@ -106,6 +106,10 @@ public class QueryProcessor {
     @SuppressWarnings("unchecked")
     private static Object defaultProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
 
+        if (isNull(manager)) {
+            throw new GenericCodeGenException("No entity manager present!\nUse '@ExtendWith(CodeGenExtension.class)' if you are in running unit test!");
+        }
+
         if (BeanUtils.isSimpleValueType(mapClass)) {
             returnClass = mapClass;
         }

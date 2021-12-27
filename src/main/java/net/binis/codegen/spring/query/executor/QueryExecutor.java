@@ -35,8 +35,11 @@ import org.springframework.data.domain.Pageable;
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
+import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.*;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 
@@ -45,6 +48,7 @@ import static java.util.Objects.nonNull;
 public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
     private static final String DEFAULT_ALIAS = "u";
+    private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
 
     private int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
@@ -145,7 +149,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     public QueryExecutor<T, S, O, R, A, F> identifier(String id) {
         if (fields) {
-            select.append(alias).append(".").append(id).append(",");
+            select.append(alias).append(".").append(id).append(" as ").append(id).append(",");
             fieldsCount++;
         } else {
             if (Objects.isNull(where)) {
@@ -386,6 +390,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (S) this;
     }
 
+    public S by(Class<?> projection) {
+        buildProjection(projection);
+        return by();
+    }
+
+
     @SuppressWarnings("unchecked")
     @Override
     public F select() {
@@ -431,12 +441,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (long) execute();
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
         pageable = PageRequest.of(0, 1);
-        return (Optional) execute();
+        return get();
     }
 
     @SuppressWarnings("unchecked")
@@ -469,11 +478,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                 transaction(consumer));
     }
 
-    @SuppressWarnings("unchecked")
     public List<R> top(long records) {
         pageable = PageRequest.of(0, (int) records);
-        resultType = QueryProcessor.ResultType.LIST;
-        return (List) execute();
+        return list();
     }
 
     @SuppressWarnings("unchecked")
@@ -649,6 +656,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    public <V> QueryExecute<V> projection(Class<V> projection) {
+        buildProjection(projection);
+        mapClass = projection;
+        return (QueryExecute) this;
+    }
+
+    @Override
     public boolean exists() {
         return count() > 0;
     }
@@ -754,6 +768,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         if (QueryProcessor.ResultType.UNKNOWN.equals(resultType)) {
             resultType = QueryProcessor.ResultType.SINGLE;
         }
+
+        if (nonNull(select)) {
+            resultType = QueryProcessor.ResultType.TUPLE;
+        }
+
         return (Optional) execute();
     }
 
@@ -767,7 +786,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @SuppressWarnings("unchecked")
     @Override
     public List<R> list() {
-        resultType = QueryProcessor.ResultType.LIST;
+        if (nonNull(select)) {
+            resultType = QueryProcessor.ResultType.TUPLES;
+        } else {
+            resultType = QueryProcessor.ResultType.LIST;
+        }
         return (List) execute();
     }
 
@@ -1386,6 +1409,83 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public Object upper() {
         doUpper();
         return getQueryName();
+    }
+
+    public void buildProjection(Class<?> projection) {
+        var list = projections.computeIfAbsent(returnClass, c -> new HashMap<>())
+                .computeIfAbsent(projection, c -> calcProjection(projection));
+
+        if (!list.isEmpty()) {
+            select = new StringBuilder(list.stream().collect(Collectors.joining("," + alias + ".", alias + ".", "")));
+        } else {
+            log.warn("Projection ({}) did not produce any fields!", projection.getCanonicalName());
+        }
+    }
+
+    protected List<String> calcProjection(Class<?> projection) {
+        if (!projection.isInterface()) {
+            throw new QueryBuilderException("Projection must be interface!");
+        }
+
+        var list = calcProjection(projection, new ArrayList<>());
+        list.sort(Comparator.naturalOrder());
+
+        mapProperties(returnClass, list);
+
+        return list.stream().filter(s -> s.contains(" as ")).collect(Collectors.toList());
+    }
+
+    protected List<String> calcProjection(Class<?> projection, List<String> list) {
+        for (var inh : projection.getInterfaces()) {
+            calcProjection(inh, list);
+        }
+
+        for (var method : projection.getDeclaredMethods()) {
+            if (method.getParameters().length == 0 && !void.class.equals(method.getReturnType()) && isGetter(method)) {
+                list.add(method.getName());
+            }
+        }
+
+        return list;
+    }
+
+    private boolean isGetter(Method method) {
+        var name = method.getName();
+        return (name.startsWith("get") && name.length() > 3) ||
+                (name.startsWith("is") && name.length() > 2);
+    }
+
+    private void mapProperties(Class<?> cls, List<String> list) {
+        for (var inh : cls.getInterfaces()) {
+            mapProperties(inh, list);
+        }
+
+        for (var i = 0; i < list.size(); i++) {
+            var field = getFieldName(cls, list.get(i), "");
+            if (nonNull(field)) {
+                list.set(i, field + " as " + TupleBackedProjection.getFieldName(list.get(i)));
+            }
+        }
+    }
+
+    private String getFieldName(Class<?> cls, String methodName, String prefix) {
+        if (!methodName.contains(" as ")) {
+            try {
+                var method = cls.getDeclaredMethod(methodName);
+                return prefix + TupleBackedProjection.getFieldName(methodName);
+            } catch (NoSuchMethodException e) {
+                var method = Arrays.stream(cls.getDeclaredMethods())
+                        .filter(m -> m.getParameters().length == 0 && methodName.startsWith(m.getName()))
+                        .findFirst();
+                if (method.isPresent()) {
+                    var name = methodName.charAt(0) == 'i' ?
+                            "is" + methodName.substring(method.get().getName().length()) :
+                            "get" + methodName.substring(method.get().getName().length());
+                    return getFieldName(method.get().getReturnType(), name,prefix + TupleBackedProjection.getNativeFieldName(method.get().getName()) + ".");
+                }
+            }
+        }
+        return null;
     }
 
 }

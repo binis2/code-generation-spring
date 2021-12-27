@@ -56,14 +56,13 @@ public interface QueryExecute<R> extends Queryable {
     <V> void paged(long pageSize, Class<V> cls, Consumer<Page<V>> consumer);
     <V> void paged(Pageable pageable, Class<V> cls, Consumer<Page<V>> consumer);
 
-
-
     Optional<Tuple> tuple();
     <V> Optional<Class<V>> tuple(Class<V> cls);
     List<Tuple> tuples();
     <V> List<V> tuples(Class<V> cls);
     PreparedQuery<R> prepare();
 
+    <V> QueryExecute<V> projection(Class<V> projection);
     QueryExecute<R> flush(FlushModeType type);
     QueryExecute<R> lock(LockModeType type);
     QueryExecute<R> hint(String hint, Object value);

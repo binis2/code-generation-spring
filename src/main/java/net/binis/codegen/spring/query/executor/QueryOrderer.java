@@ -181,6 +181,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public <V> QueryExecute<V> projection(Class<V> projection) {
+        return executor.projection(projection);
+    }
+
+    @Override
     public QueryExecute<R> flush(FlushModeType type) {
         return executor.flush(type);
     }
