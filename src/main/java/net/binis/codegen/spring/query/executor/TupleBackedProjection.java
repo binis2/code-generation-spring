@@ -93,16 +93,20 @@ public class TupleBackedProjection implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
         if (method.getName().startsWith("get") || method.getName().startsWith("is")) {
-            var field = getNativeFieldName(method.getName());
+            var field = getFieldName(method.getName());
             try {
                 return convert(tuple.get(field), method.getReturnType());
             } catch (IllegalArgumentException e) {
+                field = getNativeFieldName(method.getName());
                 try {
-                    return processSubEntity(tuple.get(field + "_id"), method.getReturnType());
-                } catch (IllegalArgumentException ex) {
-                    throw e;
+                    return convert(tuple.get(field), method.getReturnType());
+                } catch (IllegalArgumentException exc) {
+                    try {
+                        return processSubEntity(tuple.get(field + "_id"), method.getReturnType());
+                    } catch (IllegalArgumentException ex) {
+                        throw exc;
+                    }
                 }
-
             }
         }
 

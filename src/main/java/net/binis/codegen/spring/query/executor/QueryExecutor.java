@@ -31,7 +31,6 @@ import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.util.Pair;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
@@ -447,7 +446,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
         pageable = PageRequest.of(0, 1);
-        return (Optional) execute();
+        return (Optional) get();
     }
 
     @SuppressWarnings("unchecked")
@@ -660,6 +659,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
+    public <V> QueryExecute<V> projection(Class<V> projection) {
+        buildProjection(projection);
+        mapClass = projection;
+        return (QueryExecute) this;
+    }
+
+    @Override
     public boolean exists() {
         return count() > 0;
     }
@@ -766,7 +772,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             resultType = QueryProcessor.ResultType.SINGLE;
         }
 
-        if (mapClass.equals(returnClass) && nonNull(select)) {
+        if (nonNull(select)) {
             resultType = QueryProcessor.ResultType.TUPLE;
         }
 
@@ -783,7 +789,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @SuppressWarnings("unchecked")
     @Override
     public List<R> list() {
-        if (mapClass.equals(returnClass) && nonNull(select)) {
+        if (nonNull(select)) {
             resultType = QueryProcessor.ResultType.TUPLES;
         } else {
             resultType = QueryProcessor.ResultType.LIST;
@@ -1425,6 +1431,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
 
         var list = calcProjection(projection, new ArrayList<>());
+        list.sort(Comparator.naturalOrder());
 
         mapProperties(returnClass, list);
 

@@ -62,6 +62,7 @@ public interface QueryExecute<R> extends Queryable {
     <V> List<V> tuples(Class<V> cls);
     PreparedQuery<R> prepare();
 
+    <V> QueryExecute<V> projection(Class<V> projection);
     QueryExecute<R> flush(FlushModeType type);
     QueryExecute<R> lock(LockModeType type);
     QueryExecute<R> hint(String hint, Object value);
