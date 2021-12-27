@@ -2,7 +2,8 @@
 
 Spring extension module for Binis CodeGen Library.
 
-For usage examples please see [https://github.com/binis2/code-generation]
+For usage examples please see [https://github.com/binis2/code-generation]    
+For full project examples please see [https://github.com/binis2/code-generation-examples] 
 
 ### Maven Dependency
 ```xml
