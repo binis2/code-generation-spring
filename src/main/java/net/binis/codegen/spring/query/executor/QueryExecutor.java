@@ -301,6 +301,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
         fieldsCount++;
         select.append(alias).append(".").append(id).append(distinct ? " " : ")").append(",");
+        if (distinct) {
+            if (Objects.isNull(group)) {
+                group = new StringBuilder();
+            }
+
+            group.append(alias).append(".").append(id).append(",");
+        }
         distinct = false;
         return aggregate;
     }
@@ -740,6 +747,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
 
         if (nonNull(group)) {
+            stripLast(group, ",");
             query.append(" group by ").append(group).append(' ');
         }
 
@@ -769,7 +777,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             resultType = QueryProcessor.ResultType.SINGLE;
         }
 
-        if (nonNull(select)) {
+        if (nonNull(select) && !Number.class.isAssignableFrom(mapClass) && !void.class.equals(mapClass)) {
             resultType = QueryProcessor.ResultType.TUPLE;
         }
 
@@ -1089,6 +1097,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public Object distinct() {
         select.append("distinct ");
         distinct = true;
+        mapClass = Tuple.class;
         return aggregate;
     }
 
