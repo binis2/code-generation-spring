@@ -45,4 +45,6 @@ public interface QueryStarter<R, S, A, F> {
 
     void async(Consumer<QueryStarter<R, S, A, F>> consumer);
 
+    R reference(Object id);
+
 }

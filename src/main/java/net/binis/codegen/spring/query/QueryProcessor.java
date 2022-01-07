@@ -9,9 +9,9 @@ package net.binis.codegen.spring.query;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,6 +23,7 @@ package net.binis.codegen.spring.query;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
+import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import net.binis.codegen.spring.query.executor.Filter;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
 import net.binis.codegen.spring.query.executor.TupleBackedProjection;
@@ -38,6 +39,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -105,6 +107,8 @@ public class QueryProcessor {
 
     @SuppressWarnings("unchecked")
     private static Object defaultProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
+
+        var original = returnClass;
 
         if (isNull(manager)) {
             throw new GenericCodeGenException("No entity manager present!\nUse '@ExtendWith(CodeGenExtension.class)' if you are in running unit test!");
@@ -225,6 +229,24 @@ public class QueryProcessor {
                     return q.getResultList();
                 }
 
+            case REFERENCE:
+                var impl = CodeFactory.lookup(original);
+                if (Objects.isNull(impl)) {
+                    throw new QueryBuilderException("Can't find implementation class for "+ original.getCanonicalName() + "!");
+                }
+
+                try {
+                    var result = q.getSingleResult();
+                    return Optional.of(manager.getReference(impl, result));
+                } catch (NoResultException ex) {
+                    return Optional.empty();
+                }
+            case REFERENCES:
+                var imp = CodeFactory.lookup(original);
+                if (Objects.isNull(imp)) {
+                    throw new QueryBuilderException("Can't find implementation class for "+ original.getCanonicalName() + "!");
+                }
+                return q.getResultList().stream().map(r -> manager.getReference(imp, r)).collect(Collectors.toList());
             default:
                 throw new GenericCodeGenException("Unknown query return type!");
         }
@@ -275,7 +297,9 @@ public class QueryProcessor {
         REMOVE,
         EXECUTE,
         TUPLE,
-        TUPLES
+        TUPLES,
+        REFERENCE,
+        REFERENCES
     }
 
     @FunctionalInterface

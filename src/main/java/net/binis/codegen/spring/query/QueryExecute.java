@@ -33,9 +33,11 @@ import java.util.function.Consumer;
 public interface QueryExecute<R> extends Queryable {
 
     R ensure();
+    Optional<R> reference();
     Optional<R> get();
     <V> Optional<V> get(Class<V> cls);
     List<R> list();
+    List<R> references();
     <V> List<V> list(Class<V> cls);
     long count();
     Optional<R> top();

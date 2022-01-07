@@ -49,6 +49,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public Optional<R> reference() {
+        return executor.reference();
+    }
+
+    @Override
     public Optional<R> get() {
         return executor.get();
     }
@@ -61,6 +66,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     @Override
     public List<R> list() {
         return executor.list();
+    }
+
+    @Override
+    public List<R> references() {
+        return executor.references();
     }
 
     @Override

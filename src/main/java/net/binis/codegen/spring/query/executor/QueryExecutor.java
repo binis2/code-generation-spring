@@ -764,6 +764,30 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return (List) list();
     }
 
+    @Override
+    public R reference(Object id) {
+        var impl = CodeFactory.lookup(returnClass);
+        if (Objects.isNull(impl)) {
+            throw new QueryBuilderException("Can't find implementation class for "+ returnClass.getCanonicalName() + "!");
+        }
+        return withRes(manager -> (R) manager.getReference(impl, id));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Optional<R> reference() {
+        checkReferenceConditions();
+        resultType = QueryProcessor.ResultType.REFERENCE;
+        return (Optional) execute();
+    }
+
+    @Override
+    public List<R> references() {
+        checkReferenceConditions();
+        resultType = QueryProcessor.ResultType.REFERENCES;
+        return (List) execute();
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public R ensure() {
@@ -1496,5 +1520,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
         return null;
     }
+
+    private void checkReferenceConditions() {
+        if (nonNull(select)) {
+            throw new QueryBuilderException("Can't use combination of select and reference!");
+        }
+
+        var entry = CodeFactory.lookupId(returnClass);
+
+        if (Objects.isNull(entry)) {
+            throw new QueryBuilderException("Class " + returnClass.getCanonicalName() + " have no declared identifier column!");
+        }
+
+        select = new StringBuilder(entry.getName());
+        mapClass = entry.getType();
+    }
+
 
 }
