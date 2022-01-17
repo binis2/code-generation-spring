@@ -20,13 +20,9 @@ package net.binis.codegen.spring.async;
  * #L%
  */
 
-import java.util.function.Consumer;
+public interface AsyncDispatcher {
 
-public interface AsyncModifier<T> {
-
-    AsyncModifier<T> flow(String flow);
-    void save();
-    void delete();
-    void execute(Consumer<T> task);
+    AsyncExecutor flow(String flow);
+    AsyncExecutor _default();
 
 }

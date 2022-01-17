@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.BasePersistenceOperations;
+import net.binis.codegen.spring.async.AsyncDispatcher;
 import net.binis.codegen.spring.async.AsyncExecutor;
 import net.binis.codegen.spring.collection.ObservableList;
 import net.binis.codegen.spring.query.*;
@@ -481,9 +482,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public void async(Consumer<QueryStarter<R, S, A, F>> consumer) {
-        CodeFactory.create(AsyncExecutor.class, "net.binis.codegen.spring.AsyncEntityModifier").execute(() ->
+        CodeFactory.create(AsyncDispatcher.class)._default().execute(() ->
                 transaction(consumer));
     }
+
+    @Override
+    public void async(String flow, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(() ->
+                transaction(consumer));
+    }
+
 
     public List<R> top(long records) {
         pageable = PageRequest.of(0, (int) records);

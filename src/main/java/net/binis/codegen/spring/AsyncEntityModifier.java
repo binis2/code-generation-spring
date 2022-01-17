@@ -22,6 +22,7 @@ package net.binis.codegen.spring;
 
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.factory.CodeFactory;
+import net.binis.codegen.spring.async.AsyncDispatcher;
 import net.binis.codegen.spring.async.AsyncExecutor;
 import net.binis.codegen.spring.async.AsyncModifier;
 import net.binis.codegen.spring.async.executor.CodeExecutor;
@@ -31,8 +32,8 @@ import java.util.function.Consumer;
 @Slf4j
 public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
 
-    {
-        CodeFactory.registerType(AsyncExecutor.class, CodeFactory.singleton(CodeExecutor.defaultExecutor()), null);
+    static {
+        CodeFactory.registerType(AsyncDispatcher.class, CodeFactory.singleton(CodeExecutor.defaultDispatcher()), null);
     }
 
     public AsyncModifier<T> async() {
@@ -41,19 +42,27 @@ public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
 
     protected class AsyncImpl implements AsyncModifier<T> {
 
+        private String flow = CodeExecutor.DEFAULT;
+
+        @Override
+        public AsyncModifier<T> flow(String flow) {
+            this.flow = flow;
+            return this;
+        }
+
         @Override
         public void save() {
-            CodeFactory.create(AsyncExecutor.class).execute(AsyncEntityModifier.this::save);
+            CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(AsyncEntityModifier.this::save);
         }
 
         @Override
         public void delete() {
-            CodeFactory.create(AsyncExecutor.class).execute(AsyncEntityModifier.this::delete);
+            CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(AsyncEntityModifier.this::delete);
         }
 
         @Override
         public void execute(Consumer<T> task) {
-            CodeFactory.create(AsyncExecutor.class).execute(() ->
+            CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(() ->
                     AsyncEntityModifier.this.transaction(m -> {
                         task.accept(m);
                         return null;
