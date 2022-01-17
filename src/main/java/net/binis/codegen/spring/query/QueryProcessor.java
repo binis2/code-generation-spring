@@ -56,6 +56,8 @@ public class QueryProcessor {
     private static Method enableFilter;
     private static Method disableFilter;
     private static Method parameter;
+    private static boolean logParams = false;
+    private static boolean logQuery = false;
 
     private QueryProcessor() {
         //Do nothing
@@ -74,6 +76,15 @@ public class QueryProcessor {
             }
         }
     }
+
+    public static void logParams() {
+        logParams = true;
+    }
+
+    public static void logQuery() {
+        logQuery = true;
+    }
+
 
     public static Processor defaultProcessor() {
         initFilters();
@@ -108,147 +119,156 @@ public class QueryProcessor {
     @SuppressWarnings("unchecked")
     private static Object defaultProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
 
-        var original = returnClass;
+        try {
+            var original = returnClass;
 
-        if (isNull(manager)) {
-            throw new GenericCodeGenException("No entity manager present!\nUse '@ExtendWith(CodeGenExtension.class)' if you are in running unit test!");
-        }
-
-        if (BeanUtils.isSimpleValueType(mapClass)) {
-            returnClass = mapClass;
-        }
-
-        var map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) || Void.class.equals(mapClass) ? Tuple.class : returnClass;
-
-        Query q;
-        if (ResultType.REMOVE.equals(resultType) || ResultType.EXECUTE.equals(resultType)) {
-            q = isNative ? manager.createNativeQuery(query)
-                    : manager.createQuery(query);
-        } else {
-            q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
-                    : manager.createQuery(query, map);
-        }
-        for (int i = 0; i < params.size(); i++) {
-            q.setParameter(i + 1, params.get(i));
-        }
-
-        if (nonNull(flush)) {
-            q.setFlushMode(flush);
-        }
-
-        if (nonNull(lock)) {
-            q.setLockMode(lock);
-        }
-
-        if (nonNull(hints)) {
-            hints.forEach(q::setHint);
-        }
-
-        if (nonNull(pageable)) {
-            q.setFirstResult((int) pageable.getOffset());
-            if (pageable.getPageSize() > -1) {
-                q.setMaxResults(pageable.getPageSize());
+            if (isNull(manager)) {
+                throw new GenericCodeGenException("No entity manager present!\nUse '@ExtendWith(CodeGenExtension.class)' if you are in running unit test!");
             }
-        }
 
-        if (nonNull(sessionClass) && nonNull(filters)) {
-            var session = manager.unwrap(sessionClass);
-            for (var filter : filters) {
-                try {
-                    if (filter.isDisabled()) {
-                        disableFilter.invoke(session, filter.getName());
-                    } else {
-                        var f = enableFilter.invoke(session, filter.getName());
-                        for (var param : filter.getValues().entrySet()) {
-                            parameter.invoke(f, param.getKey(), param.getValue());
+            if (BeanUtils.isSimpleValueType(mapClass)) {
+                returnClass = mapClass;
+            }
+
+            var map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) || Void.class.equals(mapClass) ? Tuple.class : returnClass;
+
+            Query q;
+            if (ResultType.REMOVE.equals(resultType) || ResultType.EXECUTE.equals(resultType)) {
+                q = isNative ? manager.createNativeQuery(query)
+                        : manager.createQuery(query);
+            } else {
+                q = isNative ? manager.createNativeQuery(query, nativeQueryClass(map))
+                        : manager.createQuery(query, map);
+            }
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(i + 1, params.get(i));
+            }
+
+            if (nonNull(flush)) {
+                q.setFlushMode(flush);
+            }
+
+            if (nonNull(lock)) {
+                q.setLockMode(lock);
+            }
+
+            if (nonNull(hints)) {
+                hints.forEach(q::setHint);
+            }
+
+            if (nonNull(pageable)) {
+                q.setFirstResult((int) pageable.getOffset());
+                if (pageable.getPageSize() > -1) {
+                    q.setMaxResults(pageable.getPageSize());
+                }
+            }
+
+            if (nonNull(sessionClass) && nonNull(filters)) {
+                var session = manager.unwrap(sessionClass);
+                for (var filter : filters) {
+                    try {
+                        if (filter.isDisabled()) {
+                            disableFilter.invoke(session, filter.getName());
+                        } else {
+                            var f = enableFilter.invoke(session, filter.getName());
+                            for (var param : filter.getValues().entrySet()) {
+                                parameter.invoke(f, param.getKey(), param.getValue());
+                            }
                         }
+                    } catch (Exception e) {
+                        log.error("Unable to set query filter ({})!", filter.getName(), e);
                     }
-                } catch (Exception e) {
-                    log.error("Unable to set query filter ({})!", filter.getName(), e);
                 }
             }
-        }
 
-        switch (resultType) {
-            case SINGLE:
-                try {
-                    var result = q.getSingleResult();
-                    if (void.class.equals(mapClass)) {
-                        return Optional.ofNullable(((Tuple) result).get(0));
-                    }
+            switch (resultType) {
+                case SINGLE:
+                    try {
+                        var result = q.getSingleResult();
+                        if (void.class.equals(mapClass)) {
+                            return Optional.ofNullable(((Tuple) result).get(0));
+                        }
 
-                    return Optional.ofNullable(map(mapClass, result));
-                } catch (NoResultException ex) {
-                    return Optional.empty();
-                }
-            case COUNT:
-                return q.getSingleResult();
-            case LIST:
-                if (nonNull(mapClass) && mapClass.isInterface()) {
-                    return q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList());
-                } else {
-                    return q.getResultList();
-                }
-            case PAGE:
-                if (Tuple.class.equals(returnClass)) {
-                    if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
-                        return new PageImpl((List) q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
-                    } else {
-                        return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
-                    }
-                } else {
-                    if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
-                        return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
-                    } else {
-                        return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
-                    }
-                }
-            case REMOVE:
-            case EXECUTE:
-                return q.executeUpdate();
-            case TUPLE:
-                try {
-                    var result = q.getSingleResult();
-
-                    if (isNull(result)) {
+                        return Optional.ofNullable(map(mapClass, result));
+                    } catch (NoResultException ex) {
                         return Optional.empty();
                     }
-
-                    if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
-                        return Optional.of(createProxy((Tuple) result, mapClass, executor));
+                case COUNT:
+                    return q.getSingleResult();
+                case LIST:
+                    if (nonNull(mapClass) && mapClass.isInterface()) {
+                        return q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList());
                     } else {
-                        return Optional.of(result);
+                        return q.getResultList();
                     }
-                } catch (NoResultException ex) {
-                    return Optional.empty();
-                }
-            case TUPLES:
-                if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
-                    return q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
-                } else {
-                    return q.getResultList();
-                }
+                case PAGE:
+                    if (Tuple.class.equals(returnClass)) {
+                        if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                            return new PageImpl((List) q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
+                        } else {
+                            return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
+                        }
+                    } else {
+                        if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
+                            return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
+                        } else {
+                            return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
+                        }
+                    }
+                case REMOVE:
+                case EXECUTE:
+                    return q.executeUpdate();
+                case TUPLE:
+                    try {
+                        var result = q.getSingleResult();
 
-            case REFERENCE:
-                var impl = CodeFactory.lookup(original);
-                if (Objects.isNull(impl)) {
-                    throw new QueryBuilderException("Can't find implementation class for "+ original.getCanonicalName() + "!");
-                }
+                        if (isNull(result)) {
+                            return Optional.empty();
+                        }
 
-                try {
-                    var result = q.getSingleResult();
-                    return Optional.of(manager.getReference(impl, result));
-                } catch (NoResultException ex) {
-                    return Optional.empty();
-                }
-            case REFERENCES:
-                var imp = CodeFactory.lookup(original);
-                if (Objects.isNull(imp)) {
-                    throw new QueryBuilderException("Can't find implementation class for "+ original.getCanonicalName() + "!");
-                }
-                return q.getResultList().stream().map(r -> manager.getReference(imp, r)).collect(Collectors.toList());
-            default:
-                throw new GenericCodeGenException("Unknown query return type!");
+                        if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                            return Optional.of(createProxy((Tuple) result, mapClass, executor));
+                        } else {
+                            return Optional.of(result);
+                        }
+                    } catch (NoResultException ex) {
+                        return Optional.empty();
+                    }
+                case TUPLES:
+                    if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                        return q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
+                    } else {
+                        return q.getResultList();
+                    }
+
+                case REFERENCE:
+                    var impl = CodeFactory.lookup(original);
+                    if (Objects.isNull(impl)) {
+                        throw new QueryBuilderException("Can't find implementation class for " + original.getCanonicalName() + "!");
+                    }
+
+                    try {
+                        var result = q.getSingleResult();
+                        return Optional.of(manager.getReference(impl, result));
+                    } catch (NoResultException ex) {
+                        return Optional.empty();
+                    }
+                case REFERENCES:
+                    var imp = CodeFactory.lookup(original);
+                    if (Objects.isNull(imp)) {
+                        throw new QueryBuilderException("Can't find implementation class for " + original.getCanonicalName() + "!");
+                    }
+                    return q.getResultList().stream().map(r -> manager.getReference(imp, r)).collect(Collectors.toList());
+                default:
+                    throw new GenericCodeGenException("Unknown query return type!");
+            }
+        } catch (Exception e) {
+            log.error("Failed to execute query\n{}", logQuery(query, params), e);
+            throw e;
+        } finally {
+            if (logQuery) {
+                log.info(logQuery(query, params));
+            }
         }
     }
 
@@ -276,7 +296,7 @@ public class QueryProcessor {
         return null;
     }
 
-    private static Object createProxy(Tuple tuple, Class mapClass, QueryExecutor executor) {
+    private static Object createProxy(Tuple tuple, Class<?> mapClass, QueryExecutor<?, ?, ?, ?, ?, ?> executor) {
         var elements = tuple.getElements();
         if (elements.size() == 1 && nonNull(tuple.get(0)) && mapClass.isInstance(tuple.get(0))) {
             return tuple.get(0);
@@ -286,6 +306,14 @@ public class QueryProcessor {
                 mapClass.getClassLoader(),
                 new Class[]{mapClass},
                 new TupleBackedProjection(tuple, executor));
+    }
+
+    private static String logQuery(String query, List<Object> params) {
+        if (logParams && nonNull(params)) {
+            return "Query '" + query + "' with params [" + params.stream().map(Objects::toString).map(s -> "(" + s + ")").collect(Collectors.joining(", ")) + "]";
+        } else {
+            return "Query '" + query + "'";
+        }
     }
 
     public enum ResultType {
