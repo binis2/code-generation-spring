@@ -906,7 +906,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @Override
     public QuerySelectOperation<S, O, R> in(Collection<T> values) {
         if (Objects.isNull(values) || values.isEmpty()) {
-            stripLastOperator();
+            stripToLast(current, "(");
+            current.append("0 <> 0) ");
         } else {
             stripLast(".");
             operation("in", values);
