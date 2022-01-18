@@ -20,9 +20,11 @@ package net.binis.codegen.spring.async;
  * #L%
  */
 
+import java.util.concurrent.Executor;
+
 public interface AsyncDispatcher {
 
-    AsyncExecutor flow(String flow);
-    AsyncExecutor _default();
+    Executor flow(String flow);
+    Executor _default();
 
 }

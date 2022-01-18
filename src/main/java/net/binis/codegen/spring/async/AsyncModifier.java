@@ -20,13 +20,14 @@ package net.binis.codegen.spring.async;
  * #L%
  */
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-public interface AsyncModifier<T> {
+public interface AsyncModifier<T, R> {
 
-    AsyncModifier<T> flow(String flow);
-    void save();
-    void delete();
-    void execute(Consumer<T> task);
+    AsyncModifier<T, R> flow(String flow);
+    CompletableFuture<R> save();
+    CompletableFuture<R> delete();
+    CompletableFuture<R> execute(Consumer<T> task);
 
 }

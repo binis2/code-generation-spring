@@ -25,7 +25,7 @@ import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.BasePersistenceOperations;
 import net.binis.codegen.spring.async.AsyncDispatcher;
-import net.binis.codegen.spring.async.AsyncExecutor;
+import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.spring.collection.ObservableList;
 import net.binis.codegen.spring.query.*;
 import net.binis.codegen.spring.query.exception.QueryBuilderException;
@@ -38,6 +38,7 @@ import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.*;
 import java.util.stream.Collectors;
@@ -481,17 +482,28 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public void async(Consumer<QueryStarter<R, S, A, F>> consumer) {
-        CodeFactory.create(AsyncDispatcher.class)._default().execute(() ->
+    public CompletableFuture<Void> async(Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return CodeGenCompletableFuture.runAsync(CodeFactory.create(AsyncDispatcher.class)._default(), () ->
                 transaction(consumer));
     }
 
     @Override
-    public void async(String flow, Consumer<QueryStarter<R, S, A, F>> consumer) {
-        CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(() ->
+    public <J> CompletableFuture<J> async(Function<QueryStarter<R, S, A, F>, J> func) {
+        return (CompletableFuture<J>) CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class)._default(), () ->
+                withRes(manager -> (R) func.apply(this)));
+    }
+
+    @Override
+    public CompletableFuture<Void> async(String flow, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return CodeGenCompletableFuture.runAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
                 transaction(consumer));
     }
 
+    @Override
+    public <J> CompletableFuture<J> async(String flow, Function<QueryStarter<R, S, A, F>, J> func) {
+        return (CompletableFuture<J>) CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
+                withRes(manager -> (R) func.apply(this)));
+    }
 
     public List<R> top(long records) {
         pageable = PageRequest.of(0, (int) records);

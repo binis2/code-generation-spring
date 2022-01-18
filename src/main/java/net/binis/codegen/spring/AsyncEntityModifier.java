@@ -23,10 +23,11 @@ package net.binis.codegen.spring;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.async.AsyncDispatcher;
-import net.binis.codegen.spring.async.AsyncExecutor;
 import net.binis.codegen.spring.async.AsyncModifier;
 import net.binis.codegen.spring.async.executor.CodeExecutor;
+import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -36,33 +37,33 @@ public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
         CodeFactory.registerType(AsyncDispatcher.class, CodeFactory.singleton(CodeExecutor.defaultDispatcher()), null);
     }
 
-    public AsyncModifier<T> async() {
+    public AsyncModifier<T, R> async() {
         return new AsyncImpl();
     }
 
-    protected class AsyncImpl implements AsyncModifier<T> {
+    protected class AsyncImpl implements AsyncModifier<T, R> {
 
         private String flow = CodeExecutor.DEFAULT;
 
         @Override
-        public AsyncModifier<T> flow(String flow) {
+        public AsyncModifier<T, R> flow(String flow) {
             this.flow = flow;
             return this;
         }
 
         @Override
-        public void save() {
-            CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(AsyncEntityModifier.this::save);
+        public CompletableFuture<R> save() {
+            return CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), AsyncEntityModifier.this::save);
         }
 
         @Override
-        public void delete() {
-            CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(AsyncEntityModifier.this::delete);
+        public CompletableFuture<R> delete() {
+            return CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), AsyncEntityModifier.this::delete);
         }
 
         @Override
-        public void execute(Consumer<T> task) {
-            CodeFactory.create(AsyncDispatcher.class).flow(flow).execute(() ->
+        public CompletableFuture<R> execute(Consumer<T> task) {
+            return CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
                     AsyncEntityModifier.this.transaction(m -> {
                         task.accept(m);
                         return null;
