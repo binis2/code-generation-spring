@@ -45,13 +45,13 @@ public class CodeGenCompletableFuture<T> extends CompletableFuture<T> {
 
     public static CompletableFuture<Void> runAsync(Executor executor, Runnable runnable) {
         Objects.requireNonNull(runnable);
-        return supplyAsync(executor, () -> {
+        return newSupplyAsync(executor, () -> {
             runnable.run();
             return null;
         });
     }
 
-    public static <U> CompletableFuture<U> supplyAsync(Executor executor, Supplier<U> supplier) {
+    public static <U> CompletableFuture<U> newSupplyAsync(Executor executor, Supplier<U> supplier) {
         return new CodeGenCompletableFuture<U>(executor).completeAsync(supplier);
     }
 

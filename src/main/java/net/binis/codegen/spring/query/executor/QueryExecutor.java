@@ -40,6 +40,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.*;
 import java.util.stream.Collectors;
 
@@ -489,7 +490,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public <J> CompletableFuture<J> async(Function<QueryStarter<R, S, A, F>, J> func) {
-        return (CompletableFuture<J>) CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class)._default(), () ->
+        return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CodeFactory.create(AsyncDispatcher.class)._default(), () ->
                 withRes(manager -> (R) func.apply(this)));
     }
 
@@ -501,7 +502,31 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public <J> CompletableFuture<J> async(String flow, Function<QueryStarter<R, S, A, F>, J> func) {
-        return (CompletableFuture<J>) CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
+        return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
+                withRes(manager -> (R) func.apply(this)));
+    }
+
+    @Override
+    public CompletableFuture<Void> async(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return CodeGenCompletableFuture.runAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class)._default()), () ->
+                transaction(consumer));
+    }
+
+    @Override
+    public <J> CompletableFuture<J> async(long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, J> func) {
+        return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class)._default()), () ->
+                withRes(manager -> (R) func.apply(this)));
+    }
+
+    @Override
+    public CompletableFuture<Void> async(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return CodeGenCompletableFuture.runAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class).flow(flow)), () ->
+                transaction(consumer));
+    }
+
+    @Override
+    public <J> CompletableFuture<J> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, J> func) {
+        return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class).flow(flow)), () ->
                 withRes(manager -> (R) func.apply(this)));
     }
 

@@ -28,7 +28,11 @@ import net.binis.codegen.spring.async.executor.CodeExecutor;
 import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import static java.util.Objects.nonNull;
 
 @Slf4j
 public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
@@ -44,6 +48,8 @@ public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
     protected class AsyncImpl implements AsyncModifier<T, R> {
 
         private String flow = CodeExecutor.DEFAULT;
+        private long delay;
+        private TimeUnit unit;
 
         @Override
         public AsyncModifier<T, R> flow(String flow) {
@@ -52,22 +58,39 @@ public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
         }
 
         @Override
+        public AsyncModifier<T, R> delay(long delay, TimeUnit unit) {
+            this.delay = delay;
+            this.unit = unit;
+            return this;
+        }
+
+        @Override
         public CompletableFuture<R> save() {
-            return CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), AsyncEntityModifier.this::save);
+            return execute(AsyncEntityModifier.this::save);
         }
 
         @Override
         public CompletableFuture<R> delete() {
-            return CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), AsyncEntityModifier.this::delete);
+            return execute(AsyncEntityModifier.this::delete);
         }
 
         @Override
         public CompletableFuture<R> execute(Consumer<T> task) {
-            return CodeGenCompletableFuture.supplyAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
+            return execute(() ->
                     AsyncEntityModifier.this.transaction(m -> {
                         task.accept(m);
                         return null;
                     }));
+        }
+
+        private CompletableFuture<R> execute(Supplier<R> supplier) {
+            var executor = CodeFactory.create(AsyncDispatcher.class).flow(flow);
+
+            if (delay > 0 && nonNull(unit)) {
+                executor = CompletableFuture.delayedExecutor(delay, unit, executor);
+            }
+
+            return CodeGenCompletableFuture.newSupplyAsync(executor, supplier);
         }
     }
 
