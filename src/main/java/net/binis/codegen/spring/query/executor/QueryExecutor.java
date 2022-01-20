@@ -37,6 +37,7 @@ import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -528,6 +529,26 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public <J> CompletableFuture<J> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, J> func) {
         return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class).flow(flow)), () ->
                 withRes(manager -> (R) func.apply(this)));
+    }
+
+    @Override
+    public CompletableFuture<Void> async(Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return async(duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
+    }
+
+    @Override
+    public <J> CompletableFuture<J> async(Duration duration, Function<QueryStarter<R, S, A, F>, J> func) {
+        return async(duration.toMillis(), TimeUnit.MILLISECONDS, func);
+    }
+
+    @Override
+    public CompletableFuture<Void> async(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return async(flow, duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
+    }
+
+    @Override
+    public <J> CompletableFuture<J> async(String flow, Duration duration, Function<QueryStarter<R, S, A, F>, J> func) {
+        return async(flow, duration.toMillis(), TimeUnit.MILLISECONDS, func);
     }
 
     public List<R> top(long records) {

@@ -20,6 +20,7 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -51,11 +52,17 @@ public interface QueryStarter<R, S, A, F> {
     CompletableFuture<Void> async(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer);
     <T> CompletableFuture<T> async(long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, T> func);
 
+    CompletableFuture<Void> async(Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer);
+    <T> CompletableFuture<T> async(Duration duration, Function<QueryStarter<R, S, A, F>, T> func);
+
     CompletableFuture<Void> async(String flow, Consumer<QueryStarter<R, S, A, F>> consumer);
     <T> CompletableFuture<T> async(String flow, Function<QueryStarter<R, S, A, F>, T> func);
 
     CompletableFuture<Void> async(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer);
     <T> CompletableFuture<T> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, T> func);
+
+    CompletableFuture<Void> async(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer);
+    <T> CompletableFuture<T> async(String flow, Duration duration, Function<QueryStarter<R, S, A, F>, T> func);
 
     R reference(Object id);
 

@@ -20,6 +20,7 @@ package net.binis.codegen.spring.async;
  * #L%
  */
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -28,6 +29,7 @@ public interface AsyncModifier<T, R> {
 
     AsyncModifier<T, R> flow(String flow);
     AsyncModifier<T, R> delay(long delay, TimeUnit unit);
+    AsyncModifier<T, R> delay(Duration duration);
     CompletableFuture<R> save();
     CompletableFuture<R> delete();
     CompletableFuture<R> execute(Consumer<T> task);

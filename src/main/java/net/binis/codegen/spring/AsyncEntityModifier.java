@@ -27,6 +27,7 @@ import net.binis.codegen.spring.async.AsyncModifier;
 import net.binis.codegen.spring.async.executor.CodeExecutor;
 import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -61,6 +62,13 @@ public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
         public AsyncModifier<T, R> delay(long delay, TimeUnit unit) {
             this.delay = delay;
             this.unit = unit;
+            return this;
+        }
+
+        @Override
+        public AsyncModifier<T, R> delay(Duration duration) {
+            this.delay = duration.toMillis();
+            this.unit = TimeUnit.MILLISECONDS;
             return this;
         }
 
