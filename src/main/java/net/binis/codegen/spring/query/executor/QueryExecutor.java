@@ -980,6 +980,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void subQueryOperation(String op, Queryable query) {
+        stripLast(".");
         if (nonNull(enveloped)) {
             if (nonNull(onEnvelop)) {
                 onEnvelop.run();
@@ -998,6 +999,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         for (int i = access.getParams().size(); i > 0; i--) {
             sub = sub.replaceAll("\\?" + i, "?" + (i + params.size()));
         }
+
+        if (Objects.isNull(access.getAccessorSelect())) {
+            sub = "select " + newAlias + " " + sub;
+        }
+
         params.addAll(access.getParams());
         current.append(" ").append(op).append(" (")
                 .append(sub)
@@ -1602,6 +1608,5 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         select = new StringBuilder(entry.getName());
         mapClass = entry.getType();
     }
-
 
 }

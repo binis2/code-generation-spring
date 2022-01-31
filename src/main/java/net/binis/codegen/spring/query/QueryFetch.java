@@ -20,9 +20,13 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-public interface QueryFetch<R> {
+import java.util.List;
+
+public interface QueryFetch<R, T> {
 
     R fetch();
     R leftFetch();
+    R in(List<T> list);
+    R in(Queryable query);
 
 }
