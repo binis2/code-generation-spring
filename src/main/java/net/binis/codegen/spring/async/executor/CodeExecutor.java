@@ -22,7 +22,6 @@ package net.binis.codegen.spring.async.executor;
 
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.spring.async.AsyncDispatcher;
-import net.binis.codegen.spring.async.AsyncExecutor;
 
 import java.util.Map;
 import java.util.concurrent.*;
@@ -46,11 +45,11 @@ public class CodeExecutor {
         //Do nothing.
     }
 
-    public static void registerDefaultExecutor(AsyncExecutor executor) {
+    public static void registerDefaultExecutor(Executor executor) {
         registerExecutor(DEFAULT, executor);
     }
 
-    public static void registerExecutor(String flow, AsyncExecutor executor) {
+    public static void registerExecutor(String flow, Executor executor) {
         dispatcher.register(flow, executor);
     }
 
@@ -58,7 +57,7 @@ public class CodeExecutor {
         return dispatcher;
     }
 
-    public static AsyncExecutor defaultExecutor(String flow) {
+    public static Executor defaultExecutor(String flow) {
         var executor = new ThreadPoolExecutor(1, Runtime.getRuntime().availableProcessors(),
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
@@ -74,7 +73,7 @@ public class CodeExecutor {
         });
     }
 
-    public static AsyncExecutor silentExecutor(String flow) {
+    public static Executor silentExecutor(String flow) {
         var executor = new ThreadPoolExecutor(1, Runtime.getRuntime().availableProcessors(),
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
@@ -90,11 +89,11 @@ public class CodeExecutor {
         });
     }
 
-    public static AsyncExecutor syncExecutor() {
+    public static Executor syncExecutor() {
         return Runnable::run;
     }
 
-    public static AsyncExecutor syncSilentExecutor() {
+    public static Executor syncSilentExecutor() {
         return task -> {
             try {
                 task.run();
@@ -105,21 +104,22 @@ public class CodeExecutor {
     }
 
     private static final class Dispatcher implements AsyncDispatcher {
-        private final Map<String, AsyncExecutor> flows = new ConcurrentHashMap<>();
+        private final Map<String, Executor> flows = new ConcurrentHashMap<>();
 
         @Override
-        public AsyncExecutor flow(String flow) {
+        public Executor flow(String flow) {
             return flows.computeIfAbsent(flow, CodeExecutor::defaultExecutor);
         }
 
         @Override
-        public AsyncExecutor _default() {
+        public Executor _default() {
             return flow(DEFAULT);
         }
 
-        private void register(String flow, AsyncExecutor executor) {
+        private void register(String flow, Executor executor) {
             flows.put(flow, executor);
         }
+
     }
 
     private static class DefaultThreadFactory implements ThreadFactory {
@@ -148,8 +148,5 @@ public class CodeExecutor {
             return t;
         }
     }
-
-
-
 
 }
