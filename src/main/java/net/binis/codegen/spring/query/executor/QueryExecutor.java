@@ -484,7 +484,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public CompletableFuture<Void> async(Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(Consumer<QueryStarter<R, S, A, F>> consumer) {
         return CodeGenCompletableFuture.runAsync(CodeFactory.create(AsyncDispatcher.class)._default(), () ->
                 transaction(consumer));
     }
@@ -496,7 +496,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public CompletableFuture<Void> async(String flow, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(String flow, Consumer<QueryStarter<R, S, A, F>> consumer) {
         return CodeGenCompletableFuture.runAsync(CodeFactory.create(AsyncDispatcher.class).flow(flow), () ->
                 transaction(consumer));
     }
@@ -508,7 +508,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public CompletableFuture<Void> async(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
         return CodeGenCompletableFuture.runAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class)._default()), () ->
                 transaction(consumer));
     }
@@ -520,7 +520,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public CompletableFuture<Void> async(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
         return CodeGenCompletableFuture.runAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class).flow(flow)), () ->
                 transaction(consumer));
     }
@@ -532,8 +532,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public CompletableFuture<Void> async(Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
-        return async(duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
+    public CompletableFuture<Void> asyncC(Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return asyncC(duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
     }
 
     @Override
@@ -542,8 +542,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public CompletableFuture<Void> async(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
-        return async(flow, duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
+    public CompletableFuture<Void> asyncC(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
+        return asyncC(flow, duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
     }
 
     @Override
