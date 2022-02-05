@@ -21,6 +21,7 @@ package net.binis.codegen.spring.async.executor;
  */
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.async.AsyncDispatcher;
 
 import java.util.Map;
@@ -38,10 +39,11 @@ public class CodeExecutor {
             new ThreadPoolExecutor.AbortPolicy();
 
     static {
+        CodeFactory.registerType(AsyncDispatcher.class, CodeFactory.singleton(CodeExecutor.defaultDispatcher()), null);
         registerDefaultExecutor(defaultExecutor(DEFAULT));
     }
 
-    private CodeExecutor() {
+    public CodeExecutor() {
         //Do nothing.
     }
 
