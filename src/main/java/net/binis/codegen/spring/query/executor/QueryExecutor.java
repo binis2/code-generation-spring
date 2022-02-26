@@ -885,7 +885,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @SuppressWarnings("unchecked")
     @Override
     public List<R> list() {
-        if (nonNull(select)) {
+        if (selectOrAggregate && fieldsCount > 1) {
             resultType = QueryProcessor.ResultType.TUPLES;
         } else {
             resultType = QueryProcessor.ResultType.LIST;

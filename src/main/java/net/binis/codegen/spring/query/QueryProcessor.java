@@ -189,6 +189,10 @@ public class QueryProcessor {
                             return Optional.ofNullable(((Tuple) result).get(0));
                         }
 
+                        if (nonNull(result) && mapClass.equals(result.getClass())) {
+                            return Optional.of(result);
+                        }
+
                         return Optional.ofNullable(map(mapClass, result));
                     } catch (NoResultException ex) {
                         return Optional.empty();
@@ -196,10 +200,24 @@ public class QueryProcessor {
                 case COUNT:
                     return q.getSingleResult();
                 case LIST:
+                    var rslt = q.getResultList();
+
+                    if (rslt.isEmpty()) {
+                        return rslt;
+                    }
+
+                    if (void.class.equals(mapClass)) {
+                        return rslt.stream().map(r -> ((Tuple) r).get(0)).collect(Collectors.toList());
+                    }
+
+                    if (mapClass.equals(rslt.getClass())) {
+                        return rslt;
+                    }
+
                     if (nonNull(mapClass) && mapClass.isInterface()) {
-                        return q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList());
+                        return rslt.stream().map(r -> map(mapClass, r)).collect(Collectors.toList());
                     } else {
-                        return q.getResultList();
+                        return rslt;
                     }
                 case PAGE:
                     if (Tuple.class.equals(returnClass)) {
