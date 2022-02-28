@@ -78,6 +78,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private boolean fields;
     private boolean distinct;
     private boolean selectOrAggregate;
+    private boolean projection;
 
     private Function<Object, Object> mocked;
 
@@ -885,7 +886,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @SuppressWarnings("unchecked")
     @Override
     public List<R> list() {
-        if (selectOrAggregate && fieldsCount > 1) {
+        if (projection || (selectOrAggregate && fieldsCount > 1)) {
             resultType = QueryProcessor.ResultType.TUPLES;
         } else {
             resultType = QueryProcessor.ResultType.LIST;
@@ -907,8 +908,6 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void stripToLast(StringBuilder builder, String what) {
-        var qlen = builder.length();
-        var wlen = what.length();
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
             builder.setLength(idx + what.length());
@@ -916,8 +915,6 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void stripToLastInclude(StringBuilder builder, String what) {
-        var qlen = builder.length();
-        var wlen = what.length();
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
             builder.setLength(idx);
@@ -1522,7 +1519,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         var list = projections.computeIfAbsent(returnClass, c -> new HashMap<>())
                 .computeIfAbsent(projection, c -> calcProjection(projection));
 
+        this.projection = true;
         if (!list.isEmpty()) {
+            selectOrAggregate = true;
+            fieldsCount = list.size();
             select = new StringBuilder(list.stream().collect(Collectors.joining("," + alias + ".", alias + ".", "")));
         } else {
             log.warn("Projection ({}) did not produce any fields!", projection.getCanonicalName());

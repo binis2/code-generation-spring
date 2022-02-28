@@ -9,9 +9,9 @@ package net.binis.codegen.spring.query.executor;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -108,6 +108,8 @@ public class TupleBackedProjection implements InvocationHandler {
                     }
                 }
             }
+        } else if ("toString".equals(method.getName())) {
+            return tupleToString();
         }
 
         throw new InvalidInvocationException("Can't invoke method: " + method.getName());
@@ -167,6 +169,26 @@ public class TupleBackedProjection implements InvocationHandler {
             }
         }
         return val;
+    }
+
+    private String tupleToString() {
+        var result = new StringBuilder("(");
+        var elements = tuple.getElements();
+        for (var i = 0; i < tuple.getElements().size(); i++) {
+            var element = elements.get(i);
+            if (nonNull(element.getAlias())) {
+                result.append("[\"").append(element.getAlias()).append("\"]");
+            } else {
+                result.append(i);
+            }
+            result.append("=").append(tuple.get(i)).append("; ");
+        }
+
+        if (!elements.isEmpty()) {
+            result.setLength(result.length() - 2);
+        }
+
+        return result.append(")").toString();
     }
 
 }
