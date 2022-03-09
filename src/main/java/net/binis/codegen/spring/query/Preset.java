@@ -43,16 +43,18 @@ public interface Preset {
     }
 
     interface QueryName<QS, QO, QR, QF> extends Preset.QueryFields<QuerySelectOperation<QS, QO, QR>>, Preset.QueryFuncs<QuerySelectOperation<QS, QO, QR>>, QueryFetch<QuerySelectOperation<QS, QO, QR>, QF> {
+        QueryName<QS, QO, QR, Preset> prototype(Object field);
     }
 
     interface QueryOperationFields<QR> extends QueryScript<QR> {
         QR field(Object field);
     }
 
-    interface QueryOrder<QR> extends QueryOperationFields<QueryOrderOperation<Preset.QueryOrder<QR>, QR>>, QueryExecute<QR>, QueryScript<QueryOrderOperation<Preset.QueryOrder<QR>, QR>> {
+    interface QueryOrder<QR> extends QueryOperationFields<QueryOrderOperation<Preset.QueryOrder<QR>, QR>>, QueryScript<QueryOrderOperation<Preset.QueryOrder<QR>, QR>> {
     }
 
-    interface QuerySelect<QR> extends QueryExecute<QR>, QueryModifiers<Preset.QueryName<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR, Preset>>, Preset.QueryFields<QuerySelectOperation<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR>>, Preset.QueryFuncs<QuerySelectOperation<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR>>, QueryOrderStart<QueryOperationFields<QueryOrderOperation<Preset.QueryOrder<QR>, QR>>>, QueryBracket<QuerySelect<QR>> {
+    interface QuerySelect<QR> extends QueryModifiers<Preset.QueryName<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR, Preset>>, Preset.QueryFields<QuerySelectOperation<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR>>, Preset.QueryFuncs<QuerySelectOperation<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR>>, QueryOrderStart<QueryOperationFields<QueryOrderOperation<Preset.QueryOrder<QR>, QR>>>, QueryBracket<QuerySelect<QR>> {
+        QueryName<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR, Preset> prototype(Object field);
     }
     
 
