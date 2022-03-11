@@ -55,6 +55,7 @@ public interface Preset {
 
     interface QuerySelect<QR> extends QueryModifiers<Preset.QueryName<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR, Preset>>, Preset.QueryFields<QuerySelectOperation<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR>>, Preset.QueryFuncs<QuerySelectOperation<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR>>, QueryOrderStart<QueryOperationFields<QueryOrderOperation<Preset.QueryOrder<QR>, QR>>>, QueryBracket<QuerySelect<QR>> {
         QueryName<Preset.QuerySelect<QR>, Preset.QueryOrder<QR>, QR, Preset> prototype(Object field);
+        QueryCollectionFunctions<QR, QuerySelectOperation<QuerySelect<QR>, QueryOperationFields<QueryOrderOperation<QueryOrder<QR>, QR>>, QR>> collection(Object field);
     }
     
 
