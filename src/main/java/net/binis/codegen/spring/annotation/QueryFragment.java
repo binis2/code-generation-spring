@@ -32,5 +32,5 @@ import java.lang.annotation.Target;
 @Ignore(forClass = true, forInterface = true, forField = true, forModifier = true)
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
-public @interface QueryPreset {
+public @interface QueryFragment {
 }

@@ -26,14 +26,6 @@ public interface Preset {
         return null;
     }
 
-    static <T> T param(T param) {
-        return param;
-    }
-
-    static <T> T param() {
-        return null;
-    }
-
     interface QueryFields<QR> extends QueryScript<QR> {
         <T> QR field(T field, T value);
     }
