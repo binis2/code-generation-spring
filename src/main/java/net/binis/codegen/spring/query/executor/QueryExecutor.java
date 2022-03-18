@@ -836,7 +836,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public R reference(Object id) {
         var impl = CodeFactory.lookup(returnClass);
         if (Objects.isNull(impl)) {
-            throw new QueryBuilderException("Can't find implementation class for "+ returnClass.getCanonicalName() + "!");
+            throw new QueryBuilderException("Can't find implementation class for " + returnClass.getCanonicalName() + "!");
         }
         return withRes(manager -> (R) manager.getReference(impl, id));
     }
@@ -1548,7 +1548,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
 
         for (var method : projection.getDeclaredMethods()) {
-            if (method.getParameters().length == 0 && !void.class.equals(method.getReturnType()) && isGetter(method)) {
+            if (method.getParameters().length == 0 && !void.class.equals(method.getReturnType()) && isGetter(method) && !list.contains(method.getName())) {
                 list.add(method.getName());
             }
         }
@@ -1577,23 +1577,41 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     private String getFieldName(Class<?> cls, String methodName, String prefix) {
         if (!methodName.contains(" as ")) {
-            try {
-                var method = cls.getDeclaredMethod(methodName);
+            var methods = getMethods(cls);
+            var method = methods.get(methodName);
+            if (nonNull(method)) {
                 return prefix + TupleBackedProjection.getFieldName(methodName);
-            } catch (NoSuchMethodException e) {
-                var method = Arrays.stream(cls.getDeclaredMethods())
+            } else {
+                method = methods.values().stream()
                         .filter(m -> m.getParameters().length == 0 && methodName.startsWith(m.getName()))
-                        .findFirst();
-                if (method.isPresent()) {
+                        .findFirst().orElse(null);
+                if (nonNull(method)) {
                     var name = methodName.charAt(0) == 'i' ?
-                            "is" + methodName.substring(method.get().getName().length()) :
-                            "get" + methodName.substring(method.get().getName().length());
-                    return getFieldName(method.get().getReturnType(), name,prefix + TupleBackedProjection.getNativeFieldName(method.get().getName()) + ".");
+                            "is" + methodName.substring(method.getName().length()) :
+                            "get" + methodName.substring(method.getName().length());
+                    return getFieldName(method.getReturnType(), name, prefix + TupleBackedProjection.getNativeFieldName(method.getName()) + ".");
                 }
             }
         }
         return null;
     }
+
+    private Map<String, Method> getMethods(Class<?> cls) {
+        var result = new HashMap<String, Method>();
+        getMethods(cls, result);
+        return result;
+    }
+
+    private void getMethods(Class<?> cls, Map<String, Method> map) {
+        for (var intf : cls.getInterfaces()) {
+            getMethods(intf, map);
+        }
+
+        for (var method : cls.getDeclaredMethods()) {
+            map.put(method.getName(), method);
+        }
+    }
+
 
     private void checkReferenceConditions() {
         if (nonNull(select)) {
