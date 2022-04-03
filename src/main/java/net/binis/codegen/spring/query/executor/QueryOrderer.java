@@ -281,6 +281,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         return this;
     }
 
+    @Override
+    public Object group() {
+        executor.group();
+        return this;
+    }
 
     @Override
     public Object desc() {

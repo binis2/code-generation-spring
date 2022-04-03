@@ -40,6 +40,10 @@ public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
         this.executor.embedded(name);
     }
 
+    public QuerySelectOperation join() {
+        return executor.join();
+    }
+
     public QuerySelectOperation fetch() {
         return executor.joinFetch();
     }

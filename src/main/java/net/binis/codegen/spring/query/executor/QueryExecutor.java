@@ -77,6 +77,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private boolean skipNext;
     private boolean fields;
     private boolean distinct;
+    private boolean isGroup;
     private boolean selectOrAggregate;
     private boolean projection;
 
@@ -306,8 +307,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
 
         fieldsCount++;
-        select.append(alias).append(".").append(id).append(distinct ? " " : ")").append(",");
-        if (distinct) {
+        select.append(alias).append(".").append(id).append(distinct || isGroup ? " " : ")").append(",");
+        if (isGroup) {
             if (Objects.isNull(group)) {
                 group = new StringBuilder();
             }
@@ -315,6 +316,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             group.append(alias).append(".").append(id).append(",");
         }
         distinct = false;
+        isGroup = false;
         return aggregate;
     }
 
@@ -1196,6 +1198,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return aggregate;
     }
 
+    @Override
+    public Object group() {
+        isGroup = true;
+        return aggregate;
+    }
 
     public void aggregateFunction(String sum) {
         select.append(sum).append("(");
@@ -1297,6 +1304,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public Object where() {
         whereStart();
         return this;
+    }
+
+    public QuerySelectOperation<S, O, R> join() {
+        return internalFetch("join");
     }
 
     @Override

@@ -24,6 +24,7 @@ import java.util.List;
 
 public interface QueryFetch<R, T> {
 
+    R join();
     R fetch();
     R leftFetch();
     R in(List<T> list);

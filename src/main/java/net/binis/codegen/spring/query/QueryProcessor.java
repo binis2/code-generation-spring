@@ -214,20 +214,22 @@ public class QueryProcessor {
                         return rslt;
                     }
 
-                    if (nonNull(mapClass) && mapClass.isInterface()) {
+                    if (Tuple.class.equals(returnClass)) {
+                        return rslt.stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
+                    } else if (mapClass.isInterface()) {
                         return rslt.stream().map(r -> map(mapClass, r)).collect(Collectors.toList());
                     } else {
                         return rslt;
                     }
                 case PAGE:
                     if (Tuple.class.equals(returnClass)) {
-                        if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                        if (!Tuple.class.equals(mapClass) && mapClass.isInterface()) {
                             return new PageImpl((List) q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
                         } else {
                             return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
                         }
                     } else {
-                        if (nonNull(mapClass) && mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
+                        if (mapClass.isInterface() && !returnClass.isAssignableFrom(mapClass)) {
                             return new PageImpl((List) q.getResultList().stream().map(r -> map(mapClass, r)).collect(Collectors.toList()), pageable, Integer.MAX_VALUE);
                         } else {
                             return new PageImpl(q.getResultList(), pageable, Integer.MAX_VALUE);
@@ -244,7 +246,7 @@ public class QueryProcessor {
                             return Optional.empty();
                         }
 
-                        if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                        if (!Tuple.class.equals(mapClass) && mapClass.isInterface()) {
                             return Optional.of(createProxy((Tuple) result, mapClass, executor));
                         } else {
                             return Optional.of(result);
@@ -253,7 +255,7 @@ public class QueryProcessor {
                         return Optional.empty();
                     }
                 case TUPLES:
-                    if (nonNull(mapClass) && !Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                    if (!Tuple.class.equals(mapClass) && mapClass.isInterface()) {
                         return q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
                     } else {
                         return q.getResultList();
