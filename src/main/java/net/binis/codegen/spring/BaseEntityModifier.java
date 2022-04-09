@@ -26,6 +26,7 @@ import net.binis.codegen.modifier.Modifiable;
 import net.binis.codegen.modifier.Modifier;
 
 import javax.persistence.EntityManager;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Slf4j
@@ -71,6 +72,14 @@ public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> imple
     @Final(imports = {"java.util.function.Function"}, description = "Function<{R}, {T}> function")
     public R transaction(Function<T, R> function) {
         return withRes(manager -> function.apply((T)((Modifiable) manager.merge(parent)).with()));
+    }
+
+    @SuppressWarnings("unchecked")
+    public T _if(boolean condition, Consumer<T> consumer) {
+        if (condition) {
+            consumer.accept((T) this);
+        }
+        return (T) this;
     }
 
     @Override
