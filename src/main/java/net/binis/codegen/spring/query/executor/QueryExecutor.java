@@ -1310,6 +1310,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return internalFetch("join");
     }
 
+    public QuerySelectOperation<S, O, R> leftJoin() {
+        return internalFetch("left join");
+    }
+
+
     @Override
     public QuerySelectOperation<S, O, R> join(Function<Object, Queryable> joinQuery) {
         handleJoin(joinQuery, "join");

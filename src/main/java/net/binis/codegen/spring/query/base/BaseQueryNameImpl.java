@@ -44,6 +44,11 @@ public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
         return executor.join();
     }
 
+    public QuerySelectOperation leftJoin() {
+        return executor.leftJoin();
+    }
+
+
     public QuerySelectOperation fetch() {
         return executor.joinFetch();
     }
