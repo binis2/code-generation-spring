@@ -23,68 +23,27 @@ package net.binis.codegen.spring;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.annotation.Final;
 import net.binis.codegen.modifier.Modifiable;
+import net.binis.codegen.modifier.BaseModifier;
 import net.binis.codegen.modifier.Modifier;
 
 import javax.persistence.EntityManager;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-@Slf4j
-public class BaseEntityModifier<T, R> extends BasePersistenceOperations<R> implements Modifier<R> {
+public interface BaseEntityModifier<T, R> extends BaseModifier<T, R> {
 
-    @Final
-    public R save() {
-        with(manager -> manager.persist(parent));
-        return parent;
-    }
+    R save();
 
-    @Final
-    public R saveAndFlush() {
-        save();
-        with(EntityManager::flush);
-        return parent;
-    }
+    R saveAndFlush();
 
-    @Final
-    public R merge() {
-        return withRes(manager -> manager.merge(parent));
-    }
+    R merge();
 
-    @Final
-    public R delete() {
-        with(manager -> manager.remove(parent));
-        return parent;
-    }
+    R delete();
 
-    @Final
-    public R refresh() {
-        with(manager -> manager.refresh(parent));
-        return parent;
-    }
+    R refresh();
 
-    @Final
-    public R detach() {
-        with(manager -> manager.detach(parent));
-        return parent;
-    }
+    R detach();
 
-    @SuppressWarnings("unchecked")
-    @Final(imports = {"java.util.function.Function"}, description = "Function<{R}, {T}> function")
-    public R transaction(Function<T, R> function) {
-        return withRes(manager -> function.apply((T)((Modifiable) manager.merge(parent)).with()));
-    }
-
-    @SuppressWarnings("unchecked")
-    public T _if(boolean condition, Consumer<T> consumer) {
-        if (condition) {
-            consumer.accept((T) this);
-        }
-        return (T) this;
-    }
-
-    @Override
-    public void setObject(R parent) {
-        this.parent = parent;
-    }
+    R transaction(Function<T, R> function);
 
 }
