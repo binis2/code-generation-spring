@@ -20,14 +20,7 @@ package net.binis.codegen.spring;
  * #L%
  */
 
-import lombok.extern.slf4j.Slf4j;
-import net.binis.codegen.annotation.Final;
-import net.binis.codegen.modifier.Modifiable;
 import net.binis.codegen.modifier.BaseModifier;
-import net.binis.codegen.modifier.Modifier;
-
-import javax.persistence.EntityManager;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public interface BaseEntityModifier<T, R> extends BaseModifier<T, R> {
