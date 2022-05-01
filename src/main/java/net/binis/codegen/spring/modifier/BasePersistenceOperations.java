@@ -1,4 +1,4 @@
-package net.binis.codegen.spring;
+package net.binis.codegen.spring.modifier;
 
 /*-
  * #%L
@@ -47,6 +47,10 @@ public abstract class BasePersistenceOperations<T, R> extends BaseModifierImpl<T
     private static TransactionTemplate template;
 
     private static Function<EntityManagerFactory, EntityManager> entityManagerProvider = defaultEntityManagerProvider();
+
+    protected BasePersistenceOperations(R parent) {
+        super(parent);
+    }
 
     public static void setEntityManagerProvider(Function<EntityManagerFactory, EntityManager> provider) {
         entityManagerProvider = provider;

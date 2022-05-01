@@ -1,4 +1,4 @@
-package net.binis.codegen.spring;
+package net.binis.codegen.spring.modifier;
 
 /*-
  * #%L
@@ -9,9 +9,9 @@ package net.binis.codegen.spring;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,23 +20,10 @@ package net.binis.codegen.spring;
  * #L%
  */
 
-import net.binis.codegen.modifier.BaseModifier;
-import java.util.function.Function;
+import net.binis.codegen.spring.async.AsyncModifier;
 
-public interface BaseEntityModifier<T, R> extends BaseModifier<T, R> {
+public interface AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
 
-    R save();
-
-    R saveAndFlush();
-
-    R merge();
-
-    R delete();
-
-    R refresh();
-
-    R detach();
-
-    R transaction(Function<T, R> function);
+    AsyncModifier<T, R> async();
 
 }

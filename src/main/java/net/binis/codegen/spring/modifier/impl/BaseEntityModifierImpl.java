@@ -1,4 +1,4 @@
-package net.binis.codegen.spring;
+package net.binis.codegen.spring.modifier.impl;
 
 /*-
  * #%L
@@ -22,12 +22,18 @@ package net.binis.codegen.spring;
 
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.modifier.Modifiable;
+import net.binis.codegen.spring.modifier.BaseEntityModifier;
+import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 
 import javax.persistence.EntityManager;
 import java.util.function.Function;
 
 @Slf4j
 public abstract class BaseEntityModifierImpl<T, R> extends BasePersistenceOperations<T, R> implements BaseEntityModifier<T, R> {
+
+    protected BaseEntityModifierImpl(R parent) {
+        super(parent);
+    }
 
     public R save() {
         with(manager -> manager.persist(parent));

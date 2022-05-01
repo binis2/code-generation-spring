@@ -23,7 +23,7 @@ package net.binis.codegen.spring.query.executor;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.BasePersistenceOperations;
+import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.async.AsyncDispatcher;
 import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.spring.collection.ObservableList;
@@ -107,7 +107,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private Filter filter;
     private int bracketCount;
 
-    public QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName) {
+    protected QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName) {
+        super(null);
         this.returnClass = returnClass;
         this.queryName = queryName;
         mapClass = returnClass;

@@ -1,4 +1,4 @@
-package net.binis.codegen.spring;
+package net.binis.codegen.spring.modifier.impl;
 
 /*-
  * #%L
@@ -40,6 +40,10 @@ public abstract class AsyncEntityModifierImpl<T, R> extends BaseEntityModifierIm
 
     static {
         CodeFactory.registerType(AsyncDispatcher.class, CodeFactory.singleton(CodeExecutor.defaultDispatcher()), null);
+    }
+
+    protected AsyncEntityModifierImpl(R parent) {
+        super(parent);
     }
 
     public AsyncModifier<T, R> async() {
