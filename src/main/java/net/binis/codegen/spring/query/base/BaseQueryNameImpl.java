@@ -65,6 +65,13 @@ public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
         return executor.in(query);
     }
 
+    public QuerySelectOperation isNull() {
+        return executor.isNull();
+    }
+
+    public QuerySelectOperation isNotNull() {
+        return executor.isNotNull();
+    }
 
     @SuppressWarnings("unchecked")
     @Override
