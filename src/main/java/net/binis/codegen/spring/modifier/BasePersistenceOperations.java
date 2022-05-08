@@ -1,4 +1,4 @@
-package net.binis.codegen.spring;
+package net.binis.codegen.spring.modifier;
 
 /*-
  * #%L
@@ -22,6 +22,7 @@ package net.binis.codegen.spring;
 
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
+import net.binis.codegen.modifier.impl.BaseModifierImpl;
 import net.binis.codegen.spring.component.ApplicationContextProvider;
 import org.springframework.orm.jpa.EntityManagerFactoryUtils;
 import org.springframework.orm.jpa.JpaTransactionManager;
@@ -38,7 +39,7 @@ import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 
 @Slf4j
-public class BasePersistenceOperations<R> {
+public abstract class BasePersistenceOperations<T, R> extends BaseModifierImpl<T, R> {
 
     public static final String NO_TRANSACTION_DEBUG_WARNING = "Attempt to do action outside of open transaction!";
 
@@ -47,7 +48,9 @@ public class BasePersistenceOperations<R> {
 
     private static Function<EntityManagerFactory, EntityManager> entityManagerProvider = defaultEntityManagerProvider();
 
-    protected R parent;
+    protected BasePersistenceOperations(R parent) {
+        super(parent);
+    }
 
     public static void setEntityManagerProvider(Function<EntityManagerFactory, EntityManager> provider) {
         entityManagerProvider = provider;

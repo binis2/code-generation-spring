@@ -21,7 +21,7 @@ package net.binis.codegen.spring.query.executor;
  */
 
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.BasePersistenceOperations;
+import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import org.springframework.jmx.access.InvalidInvocationException;
 
 import javax.persistence.EntityManager;

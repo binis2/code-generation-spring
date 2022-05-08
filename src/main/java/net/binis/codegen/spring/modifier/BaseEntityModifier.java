@@ -1,4 +1,4 @@
-package net.binis.codegen.spring.query;
+package net.binis.codegen.spring.modifier;
 
 /*-
  * #%L
@@ -20,17 +20,23 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-import java.util.List;
+import net.binis.codegen.modifier.BaseModifier;
+import java.util.function.Function;
 
-public interface QueryFetch<R, T> {
+public interface BaseEntityModifier<T, R> extends BaseModifier<T, R> {
 
-    R join();
-    R leftJoin();
-    R fetch();
-    R leftFetch();
-    R in(List<T> list);
-    R in(Queryable query);
-    R isNull();
-    R isNotNull();
+    R save();
+
+    R saveAndFlush();
+
+    R merge();
+
+    R delete();
+
+    R refresh();
+
+    R detach();
+
+    R transaction(Function<T, R> function);
 
 }

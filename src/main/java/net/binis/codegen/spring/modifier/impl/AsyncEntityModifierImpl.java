@@ -1,4 +1,4 @@
-package net.binis.codegen.spring;
+package net.binis.codegen.spring.modifier.impl;
 
 /*-
  * #%L
@@ -36,10 +36,14 @@ import java.util.function.Supplier;
 import static java.util.Objects.nonNull;
 
 @Slf4j
-public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
+public abstract class AsyncEntityModifierImpl<T, R> extends BaseEntityModifierImpl<T, R> {
 
     static {
         CodeFactory.registerType(AsyncDispatcher.class, CodeFactory.singleton(CodeExecutor.defaultDispatcher()), null);
+    }
+
+    protected AsyncEntityModifierImpl(R parent) {
+        super(parent);
     }
 
     public AsyncModifier<T, R> async() {
@@ -74,18 +78,18 @@ public class AsyncEntityModifier<T, R> extends BaseEntityModifier<T, R> {
 
         @Override
         public CompletableFuture<R> save() {
-            return execute(AsyncEntityModifier.this::save);
+            return execute(AsyncEntityModifierImpl.this::save);
         }
 
         @Override
         public CompletableFuture<R> delete() {
-            return execute(AsyncEntityModifier.this::delete);
+            return execute(AsyncEntityModifierImpl.this::delete);
         }
 
         @Override
         public CompletableFuture<R> execute(Consumer<T> task) {
             return execute(() ->
-                    AsyncEntityModifier.this.transaction(m -> {
+                    AsyncEntityModifierImpl.this.transaction(m -> {
                         task.accept(m);
                         return null;
                     }));

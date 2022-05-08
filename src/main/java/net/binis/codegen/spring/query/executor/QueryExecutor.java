@@ -23,7 +23,7 @@ package net.binis.codegen.spring.query.executor;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.BasePersistenceOperations;
+import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.async.AsyncDispatcher;
 import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.spring.collection.ObservableList;
@@ -49,7 +49,7 @@ import static java.util.Objects.nonNull;
 
 @SuppressWarnings("unchecked")
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
+public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
 
     private static final String DEFAULT_ALIAS = "u";
     private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
@@ -107,7 +107,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private Filter filter;
     private int bracketCount;
 
-    public QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName) {
+    protected QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName) {
+        super(null);
         this.returnClass = returnClass;
         this.queryName = queryName;
         mapClass = returnClass;
@@ -390,7 +391,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
 
     @Override
-    public QueryCondition<S, O, R> _if(boolean condition, Consumer<QuerySelectOperation<S, O, R>> query) {
+    public QueryCondition<S, O, R> _if(boolean condition, Consumer query) {
         this.condition = condition;
         if (condition) {
             query.accept(this);
