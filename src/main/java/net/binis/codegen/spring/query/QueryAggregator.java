@@ -20,8 +20,7 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
-public interface QueryAggregator<Q, A> extends QueryWhere<Q> {
+public interface QueryAggregator<Q, A> extends QueryWhere<Q>, QueryScript<QueryAggregator<Q, A>> {
 
     A and();
-
 }

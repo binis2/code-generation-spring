@@ -28,7 +28,7 @@ import net.binis.codegen.spring.query.executor.QueryExecutor;
 
 import java.util.List;
 
-public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
+public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBracket<T> {
 
     protected QueryExecutor executor;
 
@@ -85,5 +85,8 @@ public class BaseQueryNameImpl<T> implements QueryScript<T>, QueryBracket<T> {
         return (T) executor._open();
     }
 
-
+    @Override
+    public String print() {
+        return executor.print();
+    }
 }
