@@ -33,7 +33,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 
-public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrderOperation<Object, R>, QueryJoinAggregateOperation {
+public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrderOperation<Object, R>, QueryJoinAggregateOperation, QuerySelf {
 
     protected final QueryExecutor<?, ?, ?, R, ?, ?> executor;
     protected final Function<String, Object> func;
@@ -341,4 +341,8 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         executor.setParams(params);
     }
 
+    @Override
+    public Object _self() {
+        return executor._self();
+    }
 }
