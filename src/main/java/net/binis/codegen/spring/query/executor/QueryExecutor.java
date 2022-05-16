@@ -784,18 +784,20 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public O desc() {
-        stripLast(orderPart, ".");
-        stripLast(orderPart, ",");
-        QueryExecutor.this.orderPart.append(" desc,");
-        return order;
+        var _orderPart = orderPart();
+        stripLast(_orderPart, ".");
+        stripLast(_orderPart, ",");
+        _orderPart.append(" desc,");
+        return _order();
     }
 
     @Override
     public O asc() {
-        stripLast(orderPart, ".");
-        stripLast(orderPart, ",");
-        QueryExecutor.this.orderPart.append(" asc,");
-        return order;
+        var _orderPart = orderPart();
+        stripLast(_orderPart, ".");
+        stripLast(_orderPart, ",");
+        _orderPart.append(" asc,");
+        return _order();
     }
 
     public Object execute() {
@@ -1573,17 +1575,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     public Object _self() {
-        if (Objects.isNull(parent)) {
-            throw new QueryBuilderException("Invalid use of _self!");
-        }
         var _current = current();
+        if (Objects.isNull(parent)) {
+            _current.append(alias);
+            lastIdentifier = new StringBuilder("self");
+        }
         stripLast(".");
         if (fields()) {
             _current.append(" as ").append(lastIdentifier);
             fieldsInc();
         }
         _current.append(",");
-        return parent;
+        return retParent();
     }
 
     public void buildProjection(Class<?> projection) {
@@ -1726,6 +1729,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             return parent().where;
         }
         return where;
+    }
+
+    private O _order() {
+        if (nonNull(parent)) {
+            return (O) parent().order;
+        }
+        return order;
     }
 
     private boolean fields() {

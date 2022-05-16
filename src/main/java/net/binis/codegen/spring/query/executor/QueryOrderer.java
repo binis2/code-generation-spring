@@ -289,12 +289,12 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
 
     @Override
     public Object desc() {
-        return null;
+        return executor.desc();
     }
 
     @Override
     public Object asc() {
-        return null;
+        return executor.asc();
     }
 
     public QueryAggregateOperation and() {
