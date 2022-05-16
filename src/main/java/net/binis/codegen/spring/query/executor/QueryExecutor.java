@@ -23,10 +23,10 @@ package net.binis.codegen.spring.query.executor;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.async.AsyncDispatcher;
 import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.spring.collection.ObservableList;
+import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
 import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
@@ -49,16 +49,17 @@ import static java.util.Objects.nonNull;
 
 @SuppressWarnings("unchecked")
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery {
+public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed {
 
     private static final String DEFAULT_ALIAS = "u";
     private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
     public static final String CODE_EXECUTOR = "net.binis.codegen.spring.async.executor.CodeExecutor";
-
-    private int fieldsCount = 0;
+    protected QueryExecutor parent;
+    protected int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
     private Supplier<QueryEmbed> queryName;
+    private final UnaryOperator<QueryExecutor> fieldsExecutor;
     private Class<?> returnClass;
     private Class<?> aggregateClass;
     private Class<?> mapClass;
@@ -75,7 +76,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private boolean condition;
     private int lastIdStartPos;
     private boolean skipNext;
-    private boolean fields;
+    protected boolean fields;
     private boolean distinct;
     private boolean isGroup;
     private boolean selectOrAggregate;
@@ -107,10 +108,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private Filter filter;
     private int bracketCount;
 
-    protected QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName) {
+    protected QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName, UnaryOperator<QueryExecutor> fieldsExecutor) {
         super(null);
         this.returnClass = returnClass;
         this.queryName = queryName;
+        this.fieldsExecutor = fieldsExecutor;
         mapClass = returnClass;
     }
 
@@ -156,62 +158,71 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     public QueryExecutor<T, S, O, R, A, F> identifier(String id) {
-        if (fields) {
-            select.append(alias).append(".").append(id).append(" as ").append(id).append(",");
-            fieldsCount++;
+        if (fields()) {
+            var _sel = _select();
+            if (_sel.length() == 0 || _sel.charAt(_sel.length() - 1) != '.') {
+                _select().append(alias).append(".");
+            }
+            _sel.append(id).append(" as ").append(id).append(",");
+            fieldsInc();
+        } else if (current() == orderPart()) {
+            orderIdentifier(id);
         } else {
-            if (Objects.isNull(where)) {
-                whereStart();
+            var _where = _where();
+            if (Objects.isNull(_where)) {
+                _where = whereStart();
             }
 
-            var idStart = where.length() == 0 || where.charAt(where.length() - 1) != '.';
+            var idStart = _where.length() == 0 || _where.charAt(_where.length() - 1) != '.';
 
             if (idStart) {
-                lastIdStartPos = where.length();
+                lastIdStartPos = _where.length();
                 lastIdentifier = new StringBuilder(id);
             }
 
             if (Objects.isNull(enveloped) && idStart) {
-                where.append(" (").append(alias).append(".");
+                _where.append(" (").append(alias).append(".");
                 brackets = true;
             }
-            where.append(id);
+            _where.append(id);
             if (nonNull(enveloped)) {
                 if (nonNull(onEnvelop)) {
                     onEnvelop.run();
                     onEnvelop = null;
                 } else {
-                    where.append(enveloped);
+                    _where.append(enveloped);
                 }
                 enveloped = null;
             }
         }
-        return this;
+        return retParent();
     }
 
     public void embedded(String id) {
-        if (current.length() > 0 && current.charAt(current.length() - 1) == '.') {
-            current.append(id).append(".");
+        var _current = current();
+
+        if (_current.length() > 0 && _current.charAt(_current.length() - 1) == '.') {
+            _current.append(id).append(".");
             if (nonNull(lastIdentifier)) {
                 lastIdentifier.append(".").append(id);
             }
         } else {
-            if (current == where) {
+            if (_current == where) {
                 lastIdStartPos = where.length();
                 lastIdentifier = new StringBuilder(id);
             }
             if (Objects.isNull(enveloped)) {
-                current.append(" (");
+                _current.append(" (");
                 if (!alias.equals(id)) {
-                    current.append(alias).append(".");
+                    _current.append(alias).append(".");
                 }
             }
-            current.append(id).append(".");
+            _current.append(id).append(".");
         }
     }
 
     protected void doNot() {
-        current.append(" not ");
+        current().append(" not ");
     }
 
     protected void doLower() {
@@ -239,18 +250,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void backInsert(String func) {
-        var idx = current.lastIndexOf("(");
-        current.insert(idx + 1, func);
+        var idx = current().lastIndexOf("(");
+        current().insert(idx + 1, func);
     }
 
     private void backEnvelop(String func) {
         backInsert(func + "(");
-        current.append(")");
+        current().append(")");
     }
 
     private void envelop(String func) {
         enveloped = ")";
-        current.append(" (").append(func).append("(");
+        current().append(" (").append(func).append("(");
     }
 
     private void envelop(String func, Object... params) {
@@ -264,7 +275,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             }
             enveloped = s.append(")").toString();
 
-            current.append(" (").append(func).append("(");
+            current().append(" (").append(func).append("(");
         }
     }
 
@@ -284,19 +295,25 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                 onEnvelop.run();
                 onEnvelop = null;
             } else {
-                current.append(enveloped);
+                current().append(enveloped);
             }
             enveloped = null;
         }
-        current.append(' ').append(op).append(" ?").append(params.size()).append(")");
+        current().append(' ').append(op).append(" ?").append(params.size()).append(")");
         brackets = false;
     }
 
     protected QueryExecutor<T, S, O, R, A, F> orderIdentifier(String id) {
-        if (Objects.isNull(orderPart)) {
-            orderPart = new StringBuilder();
+        var _order = orderPart();
+        if (Objects.isNull(_order)) {
+            _order = orderStart();
         }
-        orderPart.append(' ').append(alias).append(".").append(id);
+
+        if (_order.length() == 0 || _order.charAt(_order.length() -1) != '.') {
+            _order.append(' ').append(alias).append(".");
+        }
+
+        _order.append(id);
         return this;
     }
 
@@ -307,7 +324,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             resultType = QueryProcessor.ResultType.TUPLE;
         }
 
-        fieldsCount++;
+        fieldsInc();
         select.append(alias).append(".").append(id).append(distinct || isGroup ? " " : ")").append(",");
         if (isGroup) {
             if (Objects.isNull(group)) {
@@ -339,14 +356,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
-        current.append(' ').append(script);
+        current().append(' ').append(script);
 
         if (brackets) {
-            current.append(")");
+            current().append(")");
             brackets = false;
         }
 
-        current.append(' ');
+        current().append(' ');
         return this;
     }
 
@@ -354,7 +371,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @Override
     public S and() {
         if (!skipNext) {
-            current.append(" and ");
+            current().append(" and ");
             brackets = false;
         } else {
             skipNext = false;
@@ -366,7 +383,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     @Override
     public S or() {
         if (!skipNext) {
-            current.append(" or ");
+            current().append(" or ");
             brackets = false;
         } else {
             skipNext = false;
@@ -379,13 +396,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             throw new QueryBuilderException("Closing bracket without opening one!");
         }
         bracketCount--;
-        current.append(") ");
+        current().append(") ");
         return this;
     }
 
     public Object _open() {
         bracketCount++;
-        current.append(" (");
+        current().append(" (");
         return this;
     }
 
@@ -419,7 +436,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         current = select;
         fields = true;
         selectOrAggregate = true;
-        return (F) this;
+        return (F) fieldsExecutor.apply(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -767,14 +784,20 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public O desc() {
-        QueryExecutor.this.orderPart.append(" desc,");
-        return order;
+        var _orderPart = orderPart();
+        stripLast(_orderPart, ".");
+        stripLast(_orderPart, ",");
+        _orderPart.append(" desc,");
+        return _order();
     }
 
     @Override
     public O asc() {
-        QueryExecutor.this.orderPart.append(" asc,");
-        return order;
+        var _orderPart = orderPart();
+        stripLast(_orderPart, ".");
+        stripLast(_orderPart, ",");
+        _orderPart.append(" asc,");
+        return _order();
     }
 
     public Object execute() {
@@ -898,7 +921,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void stripLast(String what) {
-        stripLast(current, what);
+        stripLast(current(), what);
     }
 
     private void stripLast(StringBuilder builder, String what) {
@@ -966,7 +989,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public QuerySelectOperation<S, O, R> in(Collection<T> values) {
         if (Objects.isNull(values) || values.isEmpty()) {
             stripToLast(current, "(");
-            current.append("0 <> 0) ");
+            current().append("0 <> 0) ");
         } else {
             stripLast(".");
             operation("in", values);
@@ -987,7 +1010,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
                 onEnvelop.run();
                 onEnvelop = null;
             } else {
-                current.append(enveloped);
+                current().append(enveloped);
             }
             enveloped = null;
         }
@@ -1006,7 +1029,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
 
         params.addAll(access.getParams());
-        current.append(" ").append(op).append(" (")
+        current().append(" ").append(op).append(" (")
                 .append(sub)
                 .append(")) ");
     }
@@ -1260,19 +1283,19 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     private void handleContainsCollection(Collection<T> list, String member, String oper) {
-        var idx = current.lastIndexOf("(");
-        var col = current.substring(idx + 1);
-        current.setLength(idx + 1);
+        var idx = current().lastIndexOf("(");
+        var col = current().substring(idx + 1);
+        current().setLength(idx + 1);
         if (Objects.isNull(list) || list.isEmpty()) {
-            current.append("0 = 0");
+            current().append("0 = 0");
         } else {
             for (var val : list) {
                 params.add(val);
-                current.append("?").append(params.size()).append(member).append(col).append(oper);
+                current().append("?").append(params.size()).append(member).append(col).append(oper);
             }
             stripLast(oper);
         }
-        current.append(")");
+        current().append(")");
     }
 
     @Override
@@ -1287,11 +1310,25 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
-    public void whereStart() {
+    public StringBuilder whereStart() {
+        if (nonNull(parent)) {
+            return parent().whereStart();
+        }
         fields = false;
         where = new StringBuilder();
         current = where;
+        return where;
     }
+
+    public StringBuilder orderStart() {
+        if (nonNull(parent)) {
+            return parent().orderStart();
+        }
+        orderPart = new StringBuilder();
+        current = orderPart;
+        return orderPart;
+    }
+
 
     public Object joinStart(String id, Class cls) {
         joinClass = cls;
@@ -1303,6 +1340,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public Object where() {
+        if (nonNull(parent)) {
+            var p = parent();
+            p.whereStart();
+            return p;
+        }
         whereStart();
         return this;
     }
@@ -1532,6 +1574,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return getQueryName();
     }
 
+    public Object _self() {
+        var _current = current();
+        if (Objects.isNull(parent)) {
+            _current.append(alias);
+            lastIdentifier = new StringBuilder("self");
+        }
+        stripLast(".");
+        if (fields()) {
+            _current.append(" as ").append(lastIdentifier);
+            fieldsInc();
+        }
+        _current.append(",");
+        return retParent();
+    }
+
     public void buildProjection(Class<?> projection) {
         var list = projections.computeIfAbsent(returnClass, c -> new HashMap<>())
                 .computeIfAbsent(projection, c -> calcProjection(projection));
@@ -1644,5 +1701,100 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         select = new StringBuilder(entry.getName());
         mapClass = entry.getType();
     }
+
+    private StringBuilder current() {
+        if (nonNull(parent)) {
+            return parent().current;
+        }
+        return current;
+    }
+
+    private StringBuilder orderPart() {
+        if (nonNull(parent)) {
+            return parent().orderPart;
+        }
+        return orderPart;
+    }
+
+
+    private StringBuilder _select() {
+        if (nonNull(parent)) {
+            return parent().select;
+        }
+        return select;
+    }
+
+    private StringBuilder _where() {
+        if (nonNull(parent)) {
+            return parent().where;
+        }
+        return where;
+    }
+
+    private O _order() {
+        if (nonNull(parent)) {
+            return (O) parent().order;
+        }
+        return order;
+    }
+
+    private boolean fields() {
+        if (nonNull(parent)) {
+            return parent().fields;
+        }
+        return fields;
+    }
+
+    private String alias() {
+        if (nonNull(parent)) {
+            return parent().alias;
+        }
+        return alias;
+    }
+
+    private void fieldsInc() {
+        if (nonNull(parent)) {
+            parent().fieldsCount++;
+        } else {
+            fieldsCount++;
+        }
+    }
+
+    private QueryExecutor parent() {
+        var p = parent;
+
+        while (nonNull(p.parent)) {
+            p = p.parent;
+        }
+
+        return p;
+    }
+
+    private QueryExecutor retParent() {
+
+        if (Objects.isNull(parent)) {
+            return this;
+        }
+
+        var p = this;
+        while (nonNull(p.parent) && !(p instanceof EmbeddedFields)) {
+            p = p.parent;
+        }
+
+        return p;
+    }
+
+    public void setParent(String name, Object executor) {
+        this.parent = (QueryExecutor) executor;
+        var _current = current();
+        if (_current.length() == 0 || _current.charAt(_current.length() - 1) != '.') {
+            _current.append(alias()).append('.');
+        }
+        _current.append(name).append(".");
+        if (fields()) {
+            lastIdentifier = new StringBuilder(name);
+        }
+    }
+
 
 }
