@@ -1586,6 +1586,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             fieldsInc();
         }
         _current.append(",");
+
+        var _aggregate = _aggregate();
+        if (nonNull(_aggregate)) {
+            return _aggregate;
+        }
+
         return retParent();
     }
 
@@ -1750,6 +1756,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             return parent().alias;
         }
         return alias;
+    }
+
+    private A _aggregate() {
+        if (nonNull(parent)) {
+            return (A) parent().aggregate;
+        }
+        return aggregate;
     }
 
     private void fieldsInc() {
