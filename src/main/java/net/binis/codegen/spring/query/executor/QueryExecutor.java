@@ -85,6 +85,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private Function<Object, Object> mocked;
 
     private final StringBuilder query = new StringBuilder();
+    private StringBuilder countQuery;
     protected String alias = DEFAULT_ALIAS;
     private StringBuilder select;
     private StringBuilder where;
@@ -467,10 +468,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         if (Objects.isNull(select)) {
             select = new StringBuilder("count(*)");
         } else {
-            if (select.toString().equals("distinct u,")) {
-                select = new StringBuilder("count(distinct u)");
+            if (select.toString().equals("distinct " + alias + ",")) {
+                select = new StringBuilder("count(distinct " + alias + ")");
+            } else {
+                select = new StringBuilder("count(*)");
             }
         }
+
+        if (prepared && Objects.isNull(countQuery)) {
+            countQuery = new StringBuilder();
+            buildQuery(countQuery);
+        }
+
         return (long) execute();
     }
 
@@ -807,8 +816,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         } else if (selectOrAggregate) {
             returnClass = Tuple.class;
         }
+
+        var actualQuery = resultType.equals(QueryProcessor.ResultType.COUNT) && nonNull(countQuery) ? countQuery : query;
+
         return withRes(manager ->
-                QueryProcessor.process(this, manager, query.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
+                QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
     private void buildQuery(StringBuilder query) {
