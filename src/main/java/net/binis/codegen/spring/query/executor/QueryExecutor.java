@@ -30,6 +30,7 @@ import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
 import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
@@ -108,6 +109,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private List<Filter> filters;
     private Filter filter;
     private int bracketCount;
+
+    private boolean pagedLoop;
 
     protected QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName, UnaryOperator<QueryExecutor> fieldsExecutor) {
         super(null);
@@ -599,7 +602,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     public Page<R> page(Pageable pageable) {
         resultType = QueryProcessor.ResultType.PAGE;
         this.pageable = pageable;
-        return (Page) execute();
+        return checkPage((Page) execute());
     }
 
     @SuppressWarnings("unchecked")
@@ -645,13 +648,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public <V> void paginated(Pageable pageable, Class<V> cls, Consumer<V> consumer) {
-        var page = page(pageable, cls);
-        while (!page.isEmpty()) {
-            page.getContent().forEach(consumer);
-            if (page.getContent().size() < pageable.getPageSize()) {
-                break;
+        pagedLoop = true;
+        try {
+            var page = page(pageable, cls);
+            while (!page.isEmpty()) {
+                page.getContent().forEach(consumer);
+                if (page.getContent().size() < pageable.getPageSize()) {
+                    break;
+                }
+                page = page(page.nextPageable(), cls);
             }
-            page = page(page.nextPageable(), cls);
+        } finally {
+            pagedLoop = false;
         }
     }
 
@@ -662,13 +670,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public void paged(Pageable pageable, Consumer<Page<R>> consumer) {
-        var page = page(pageable);
-        while (!page.isEmpty()) {
-            consumer.accept(page);
-            if (page.getContent().size() < pageable.getPageSize()) {
-                break;
+        pagedLoop = true;
+        try {
+            var page = page(pageable);
+            while (!page.isEmpty()) {
+                consumer.accept(page);
+                if (page.getContent().size() < pageable.getPageSize()) {
+                    break;
+                }
+                page = page(page.nextPageable());
             }
-            page = page(page.nextPageable());
+        } finally {
+            pagedLoop = false;
         }
     }
 
@@ -679,13 +692,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public <V> void paged(Pageable pageable, Class<V> cls, Consumer<Page<V>> consumer) {
-        var page = page(pageable, cls);
-        while (!page.isEmpty()) {
-            consumer.accept(page);
-            if (page.getContent().size() < pageable.getPageSize()) {
-                break;
+        pagedLoop = true;
+        try {
+            var page = page(pageable, cls);
+            while (!page.isEmpty()) {
+                consumer.accept(page);
+                if (page.getContent().size() < pageable.getPageSize()) {
+                    break;
+                }
+                page = page(page.nextPageable(), cls);
             }
-            page = page(page.nextPageable(), cls);
+        } finally {
+            pagedLoop = false;
         }
     }
 
@@ -1821,5 +1839,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         }
     }
 
+    private Page checkPage(Page org) {
+        if (pagedLoop) {
+            return org;
+        }
+
+        return new PageImpl(org.getContent(), org.getPageable(), count());
+    }
 
 }
