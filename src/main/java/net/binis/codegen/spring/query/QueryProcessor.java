@@ -316,7 +316,7 @@ public class QueryProcessor {
         return null;
     }
 
-    private static Object createProxy(Tuple tuple, Class<?> mapClass, QueryExecutor<?, ?, ?, ?, ?, ?> executor) {
+    private static Object createProxy(Tuple tuple, Class<?> mapClass, QueryExecutor<?, ?, ?, ?, ?, ?, ?> executor) {
         var elements = tuple.getElements();
         if (elements.size() == 1 && nonNull(tuple.get(0)) && mapClass.isInstance(tuple.get(0))) {
             return tuple.get(0);

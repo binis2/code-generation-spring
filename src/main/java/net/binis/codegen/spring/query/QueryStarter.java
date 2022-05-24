@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface QueryStarter<R, S, A, F> {
+public interface QueryStarter<R, S, A, F, U> {
 
     S by();
 
@@ -36,6 +36,8 @@ public interface QueryStarter<R, S, A, F> {
 
     F select();
 
+    U update();
+
     <T> T by(boolean condition, Function<S, T> query);
 
     <T> T by(boolean condition, Function<S, T> query, Function<S, T> elseQuery);
@@ -44,25 +46,25 @@ public interface QueryStarter<R, S, A, F> {
 
     QueryParam<R> query(String query);
 
-    void transaction(Consumer<QueryStarter<R, S, A, F>> consumer);
+    void transaction(Consumer<QueryStarter<R, S, A, F, U>> consumer);
 
-    CompletableFuture<Void> asyncC(Consumer<QueryStarter<R, S, A, F>> consumer);
-    <T> CompletableFuture<T> async(Function<QueryStarter<R, S, A, F>, T> func);
+    CompletableFuture<Void> asyncC(Consumer<QueryStarter<R, S, A, F, U>> consumer);
+    <T> CompletableFuture<T> async(Function<QueryStarter<R, S, A, F, U>, T> func);
 
-    CompletableFuture<Void> asyncC(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer);
-    <T> CompletableFuture<T> async(long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, T> func);
+    CompletableFuture<Void> asyncC(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F, U>> consumer);
+    <T> CompletableFuture<T> async(long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F, U>, T> func);
 
-    CompletableFuture<Void> asyncC(Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer);
-    <T> CompletableFuture<T> async(Duration duration, Function<QueryStarter<R, S, A, F>, T> func);
+    CompletableFuture<Void> asyncC(Duration duration, Consumer<QueryStarter<R, S, A, F, U>> consumer);
+    <T> CompletableFuture<T> async(Duration duration, Function<QueryStarter<R, S, A, F, U>, T> func);
 
-    CompletableFuture<Void> asyncC(String flow, Consumer<QueryStarter<R, S, A, F>> consumer);
-    <T> CompletableFuture<T> async(String flow, Function<QueryStarter<R, S, A, F>, T> func);
+    CompletableFuture<Void> asyncC(String flow, Consumer<QueryStarter<R, S, A, F, U>> consumer);
+    <T> CompletableFuture<T> async(String flow, Function<QueryStarter<R, S, A, F, U>, T> func);
 
-    CompletableFuture<Void> asyncC(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer);
-    <T> CompletableFuture<T> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, T> func);
+    CompletableFuture<Void> asyncC(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F, U>> consumer);
+    <T> CompletableFuture<T> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F, U>, T> func);
 
-    CompletableFuture<Void> asyncC(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer);
-    <T> CompletableFuture<T> async(String flow, Duration duration, Function<QueryStarter<R, S, A, F>, T> func);
+    CompletableFuture<Void> asyncC(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F, U>> consumer);
+    <T> CompletableFuture<T> async(String flow, Duration duration, Function<QueryStarter<R, S, A, F, U>, T> func);
 
     R reference(Object id);
 
