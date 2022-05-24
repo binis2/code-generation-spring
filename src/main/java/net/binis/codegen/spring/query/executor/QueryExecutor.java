@@ -50,7 +50,7 @@ import static java.util.Objects.nonNull;
 
 @SuppressWarnings("unchecked")
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed {
+public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F, U>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed, UpdatableQuery {
 
     private static final String DEFAULT_ALIAS = "u";
     private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
@@ -78,6 +78,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     private int lastIdStartPos;
     private boolean skipNext;
     protected boolean fields;
+    protected boolean update;
     private boolean distinct;
     private boolean isGroup;
     private boolean selectOrAggregate;
@@ -120,7 +121,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         mapClass = returnClass;
     }
 
-    public QueryExecutor<T, S, O, R, A, F> identifier(String id, Object value) {
+    public QueryExecutor<T, S, O, R, A, F, U> identifier(String id, Object value) {
+        if (update && Objects.isNull(where)) {
+            return identifierUpdate(id, value);
+        }
+
         if (Objects.isNull(where)) {
             whereStart();
         }
@@ -161,7 +166,23 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         return this;
     }
 
-    public QueryExecutor<T, S, O, R, A, F> identifier(String id) {
+    public QueryExecutor<T, S, O, R, A, F, U> identifierUpdate(String id, Object value) {
+        if (Objects.isNull(select)) {
+            select = new StringBuilder();
+        }
+
+        if (nonNull(mocked)) {
+            value = mocked.apply(value);
+        }
+
+        params.add(value);
+        select.append(alias).append('.').append(id).append(" = ?").append(params.size()).append(',');
+
+        return this;
+    }
+
+
+    public QueryExecutor<T, S, O, R, A, F, U> identifier(String id) {
         if (fields()) {
             var _sel = _select();
             if (_sel.length() == 0 || _sel.charAt(_sel.length() - 1) != '.') {
@@ -307,7 +328,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
         brackets = false;
     }
 
-    protected QueryExecutor<T, S, O, R, A, F> orderIdentifier(String id) {
+    protected QueryExecutor<T, S, O, R, A, F, U> orderIdentifier(String id) {
         var _order = orderPart();
         if (Objects.isNull(_order)) {
             _order = orderStart();
@@ -445,6 +466,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @SuppressWarnings("unchecked")
     @Override
+    public U update() {
+        update = true;
+        select = new StringBuilder();
+        current = select;
+        return (U) this;
+    }
+
+
+    @SuppressWarnings("unchecked")
+    @Override
     public <Q> Q by(boolean condition, Function<S, Q> query) {
         whereStart();
         if (condition) {
@@ -513,75 +544,75 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public void transaction(Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public void transaction(Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         with(manager -> consumer.accept(this));
     }
 
     @Override
-    public CompletableFuture<Void> asyncC(Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         return CodeGenCompletableFuture.runAsync(CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR)._default(), () ->
                 transaction(consumer));
     }
 
     @Override
-    public <J> CompletableFuture<J> async(Function<QueryStarter<R, S, A, F>, J> func) {
+    public <J> CompletableFuture<J> async(Function<QueryStarter<R, S, A, F, U>, J> func) {
         return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR)._default(), () ->
                 withRes(manager -> (R) func.apply(this)));
     }
 
     @Override
-    public CompletableFuture<Void> asyncC(String flow, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(String flow, Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         return CodeGenCompletableFuture.runAsync(CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR).flow(flow), () ->
                 transaction(consumer));
     }
 
     @Override
-    public <J> CompletableFuture<J> async(String flow, Function<QueryStarter<R, S, A, F>, J> func) {
+    public <J> CompletableFuture<J> async(String flow, Function<QueryStarter<R, S, A, F, U>, J> func) {
         return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR).flow(flow), () ->
                 withRes(manager -> (R) func.apply(this)));
     }
 
     @Override
-    public CompletableFuture<Void> asyncC(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         return CodeGenCompletableFuture.runAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR)._default()), () ->
                 transaction(consumer));
     }
 
     @Override
-    public <J> CompletableFuture<J> async(long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, J> func) {
+    public <J> CompletableFuture<J> async(long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F, U>, J> func) {
         return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR)._default()), () ->
                 withRes(manager -> (R) func.apply(this)));
     }
 
     @Override
-    public CompletableFuture<Void> asyncC(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(String flow, long delay, TimeUnit unit, Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         return CodeGenCompletableFuture.runAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR).flow(flow)), () ->
                 transaction(consumer));
     }
 
     @Override
-    public <J> CompletableFuture<J> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F>, J> func) {
+    public <J> CompletableFuture<J> async(String flow, long delay, TimeUnit unit, Function<QueryStarter<R, S, A, F, U>, J> func) {
         return (CompletableFuture<J>) CodeGenCompletableFuture.newSupplyAsync(CompletableFuture.delayedExecutor(delay, unit, CodeFactory.create(AsyncDispatcher.class, CODE_EXECUTOR).flow(flow)), () ->
                 withRes(manager -> (R) func.apply(this)));
     }
 
     @Override
-    public CompletableFuture<Void> asyncC(Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(Duration duration, Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         return asyncC(duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
     }
 
     @Override
-    public <J> CompletableFuture<J> async(Duration duration, Function<QueryStarter<R, S, A, F>, J> func) {
+    public <J> CompletableFuture<J> async(Duration duration, Function<QueryStarter<R, S, A, F, U>, J> func) {
         return async(duration.toMillis(), TimeUnit.MILLISECONDS, func);
     }
 
     @Override
-    public CompletableFuture<Void> asyncC(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F>> consumer) {
+    public CompletableFuture<Void> asyncC(String flow, Duration duration, Consumer<QueryStarter<R, S, A, F, U>> consumer) {
         return asyncC(flow, duration.toMillis(), TimeUnit.MILLISECONDS, consumer);
     }
 
     @Override
-    public <J> CompletableFuture<J> async(String flow, Duration duration, Function<QueryStarter<R, S, A, F>, J> func) {
+    public <J> CompletableFuture<J> async(String flow, Duration duration, Function<QueryStarter<R, S, A, F, U>, J> func) {
         return async(flow, duration.toMillis(), TimeUnit.MILLISECONDS, func);
     }
 
@@ -631,13 +662,18 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
     @Override
     public void paginated(Pageable pageable, Consumer<R> consumer) {
-        var page = page(pageable);
-        while (!page.isEmpty()) {
-            page.getContent().forEach(consumer);
-            if (page.getContent().size() < pageable.getPageSize()) {
-                break;
+        pagedLoop = true;
+        try {
+            var page = page(pageable);
+            while (!page.isEmpty()) {
+                page.getContent().forEach(consumer);
+                if (page.getContent().size() < pageable.getPageSize()) {
+                    break;
+                }
+                page = page(page.nextPageable());
             }
-            page = page(page.nextPageable());
+        } finally {
+            pagedLoop = false;
         }
     }
 
@@ -848,7 +884,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
 
         if (nonNull(select)) {
             stripLast(select, ",");
-            query.append("select ").append(select).append(' ');
+            if (update) {
+                query.append("update ");
+            } else {
+                query.append("select ").append(select).append(' ');
+            }
         } else {
             if (nonNull(join)) {
                 query.append("select ").append(alias).append(' ');
@@ -858,7 +898,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
             query.append("delete ");
         }
         if (!isCustom) {
-            query.append("from ").append(returnClass.getName()).append(' ').append(alias).append(' ');
+            if (!update) {
+                query.append("from ");
+            }
+            query.append(returnClass.getName()).append(' ').append(alias).append(' ');
+        }
+
+        if (update) {
+            query.append("set ").append(select).append(' ');
         }
 
         if (nonNull(join) && join.length() > 0) {
@@ -1159,7 +1206,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F> extends BasePersistenceOpe
     }
 
     @Override
-    public QueryExecutor<T, S, O, R, A, F> params(Collection<Object> params) {
+    public QueryExecutor<T, S, O, R, A, F, U> params(Collection<Object> params) {
         this.params = new ArrayList<>(params);
         return this;
     }

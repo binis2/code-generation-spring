@@ -35,10 +35,10 @@ import java.util.function.IntSupplier;
 
 public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrderOperation<Object, R>, QueryJoinAggregateOperation, QuerySelf {
 
-    protected final QueryExecutor<?, ?, ?, R, ?, ?> executor;
+    protected final QueryExecutor<?, ?, ?, R, ?, ?, ?> executor;
     protected final Function<String, Object> func;
 
-    public QueryOrderer(QueryExecutor<?, ?, ?, R, ?, ?> executor, Function<String, Object> func) {
+    public QueryOrderer(QueryExecutor<?, ?, ?, R, ?, ?, ?> executor, Function<String, Object> func) {
         this.executor = executor;
         this.func = func;
     }
@@ -228,6 +228,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     @Override
     public int remove() {
         return executor.remove();
+    }
+
+    @Override
+    public int run() {
+        return executor.run();
     }
 
     @Override

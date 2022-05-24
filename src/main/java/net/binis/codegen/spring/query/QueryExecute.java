@@ -73,5 +73,6 @@ public interface QueryExecute<R> extends Queryable {
     boolean exists();
     void delete();
     int remove();
+    int run();
 
 }
