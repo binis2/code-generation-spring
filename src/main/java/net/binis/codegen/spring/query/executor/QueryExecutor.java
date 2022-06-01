@@ -1865,12 +1865,17 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             return this;
         }
 
+        var last = this;
         var p = this;
-        while (nonNull(p.parent) && !(p instanceof EmbeddedFields)) {
+        while (nonNull(p.parent)) {
             p = p.parent;
+            if (p instanceof EmbeddedFields) {
+                last = p;
+            }
+
         }
 
-        return p;
+        return last;
     }
 
     public void setParent(String name, Object executor) {
