@@ -337,6 +337,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public boolean isAltered() {
+        return executor.isAltered();
+    }
+
+    @Override
     public void setJoinSupplier(IntSupplier supplier) {
         executor.setJoinSupplier(supplier);
     }
