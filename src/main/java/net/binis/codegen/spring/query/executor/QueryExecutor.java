@@ -382,6 +382,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
+        stripLast(" ");
+        stripLast(".");
         $current().append(' ').append(script);
 
         if (brackets) {
@@ -390,6 +392,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
 
         $current().append(' ');
+        return this;
+    }
+
+    public QuerySelectOperation<S, O, R> script(String script, Object... params) {
+        script(script);
+        Collections.addAll(this.params, params);
         return this;
     }
 
