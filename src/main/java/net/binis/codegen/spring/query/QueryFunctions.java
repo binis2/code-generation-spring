@@ -30,6 +30,8 @@ public interface QueryFunctions<T, R> extends QueryScript<R> {
     R between(T from, T to);
     R in(Collection<T> values);
     R in(Queryable query);
+    @SuppressWarnings("unchecked")
+    R in(T... values);
     R isNull();
     R isNotNull();
     R like(String value);

@@ -1090,6 +1090,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
+    public QuerySelectOperation<S, O, R> in(T... values) {
+        return in(Arrays.asList(values));
+    }
+
     @Override
     public QuerySelectOperation<S, O, R> in(Queryable query) {
         subQueryOperation("in", query);
