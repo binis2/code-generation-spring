@@ -245,6 +245,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         return this;
     }
 
+    public Object script(String script, Object... params) {
+        executor.script(script, params);
+        return this;
+    }
+
     public Object _open() {
         executor._open();
         return this;
@@ -334,6 +339,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     @Override
     public List<Object> getParams() {
         return executor.getParams();
+    }
+
+    @Override
+    public boolean isAltered() {
+        return executor.isAltered();
     }
 
     @Override

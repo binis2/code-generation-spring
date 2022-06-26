@@ -69,6 +69,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     private boolean isCustom;
     private boolean isModifying;
     private boolean prepared;
+    private boolean altered;
     private O order;
     private A aggregate;
     private String enveloped = null;
@@ -381,6 +382,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
+        stripLast(" ");
+        stripLast(".");
         $current().append(' ').append(script);
 
         if (brackets) {
@@ -389,6 +392,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
 
         $current().append(' ');
+        return this;
+    }
+
+    public QuerySelectOperation<S, O, R> script(String script, Object... params) {
+        script(script);
+        Collections.addAll(this.params, params);
         return this;
     }
 
@@ -508,6 +517,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 select = new StringBuilder("count(*)");
             }
         }
+        altered = true;
 
         if (prepared && Objects.isNull(countQuery)) {
             countQuery = new StringBuilder();
@@ -822,7 +832,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public boolean exists() {
-        return count() > 0;
+        try {
+            pageable = PageRequest.of(0, 1);
+            return reference().isPresent();
+        } catch (QueryBuilderException e) {
+            //Do nothing
+        }
+        return top().isPresent();
     }
 
     @Override
@@ -1072,6 +1088,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             operation("in", values);
         }
         return this;
+    }
+
+    public QuerySelectOperation<S, O, R> in(T... values) {
+        return in(Arrays.asList(values));
     }
 
     @Override
@@ -1592,6 +1612,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     @Override
+    public boolean isAltered() {
+        return altered;
+    }
+
+    @Override
     public void setJoinSupplier(IntSupplier supplier) {
         alias = "j" + supplier.getAsInt();
         joinSupplier = supplier;
@@ -1770,6 +1795,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
 
     private void checkReferenceConditions() {
+        if (isCustom || isNative) {
+            throw new QueryBuilderException("Can't get reference for custom queries!");
+        }
+
         if (nonNull(select)) {
             throw new QueryBuilderException("Can't use combination of select and reference!");
         }
@@ -1782,6 +1811,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
         select = new StringBuilder(entry.getName());
         mapClass = entry.getType();
+        altered = true;
     }
 
     private StringBuilder $current() {

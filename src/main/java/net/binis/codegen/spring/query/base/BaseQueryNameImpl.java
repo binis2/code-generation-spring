@@ -61,6 +61,10 @@ public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBra
         return executor.in(list);
     }
 
+    public QuerySelectOperation in(Object... values) {
+        return executor.in(values);
+    }
+
     public QuerySelectOperation in(Queryable query) {
         return executor.in(query);
     }
@@ -77,6 +81,11 @@ public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBra
     @Override
     public T script(String script) {
         return (T) executor.script(script);
+    }
+
+    @Override
+    public T script(String script, Object... params) {
+        return (T) executor.script(script, params);
     }
 
     @SuppressWarnings("unchecked")
