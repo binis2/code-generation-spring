@@ -156,7 +156,7 @@ public class QueryProcessor {
                 hints.forEach(q::setHint);
             }
 
-            if (nonNull(pageable)) {
+            if (nonNull(pageable) && !ResultType.COUNT.equals(resultType)) {
                 q.setFirstResult((int) pageable.getOffset());
                 if (pageable.getPageSize() > -1) {
                     q.setMaxResults(pageable.getPageSize());

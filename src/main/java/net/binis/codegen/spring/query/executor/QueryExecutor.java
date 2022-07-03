@@ -519,9 +519,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
         altered = true;
 
-        if (prepared && Objects.isNull(countQuery)) {
+        if (Objects.isNull(countQuery)) {
             countQuery = new StringBuilder();
-            buildQuery(countQuery);
+            buildQuery(countQuery, true);
         }
 
         return (long) execute();
@@ -776,7 +776,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public PreparedQuery<R> prepare() {
         if (!prepared) {
-            buildQuery(query);
+            buildQuery(query, false);
             prepared = true;
         }
         return this;
@@ -857,7 +857,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public String print() {
         var result = new StringBuilder();
-        buildQuery(result);
+        buildQuery(result, false);
         return result.toString();
     }
 
@@ -880,20 +880,24 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public Object execute() {
-        prepare();
+        StringBuilder actualQuery;
+        if (resultType.equals(QueryProcessor.ResultType.COUNT) && nonNull(countQuery)) {
+            actualQuery = countQuery;
+        } else {
+            prepare();
+            actualQuery = query;
+        }
         if (nonNull(aggregateClass) && fieldsCount == 1) {
             returnClass = aggregateClass;
         } else if (selectOrAggregate) {
             returnClass = Tuple.class;
         }
 
-        var actualQuery = resultType.equals(QueryProcessor.ResultType.COUNT) && nonNull(countQuery) ? countQuery : query;
-
         return withRes(manager ->
                 QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
-    private void buildQuery(StringBuilder query) {
+    private void buildQuery(StringBuilder query, boolean countQuery) {
         if (bracketCount != 0) {
             throw new QueryBuilderException("Missing closing bracket!");
         }
@@ -938,7 +942,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             query.append(" group by ").append(group).append(' ');
         }
 
-        if (nonNull(orderPart)) {
+        if (nonNull(orderPart) && !countQuery) {
             stripLast(orderPart, ",");
             query.append(" order by ").append(orderPart);
         }
