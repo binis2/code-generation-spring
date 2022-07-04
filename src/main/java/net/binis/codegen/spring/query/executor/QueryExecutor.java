@@ -530,7 +530,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
-        pageable = PageRequest.of(0, 1);
+        if (Objects.isNull(pageable) || pageable.getPageNumber() != 0 || pageable.getPageSize() != 1) {
+            pageable = PageRequest.of(0, 1);
+        }
         return get();
     }
 
@@ -832,13 +834,20 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public boolean exists() {
+        var oldPageable = pageable;
+        pagedLoop = true;
         try {
-            pageable = PageRequest.of(0, 1);
-            return reference().isPresent();
-        } catch (QueryBuilderException e) {
-            //Do nothing
+            try {
+                pageable = PageRequest.of(0, 1);
+                return reference().isPresent();
+            } catch (QueryBuilderException e) {
+                //Do nothing
+            }
+            return top().isPresent();
+        } finally {
+            pageable = oldPageable;
+            pagedLoop = false;
         }
-        return top().isPresent();
     }
 
     @Override
@@ -1798,7 +1807,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
 
-    private void checkReferenceConditions() {
+    public void checkReferenceConditions() {
         if (isCustom || isNative) {
             throw new QueryBuilderException("Can't get reference for custom queries!");
         }

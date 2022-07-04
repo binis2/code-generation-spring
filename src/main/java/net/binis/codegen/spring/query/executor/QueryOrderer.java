@@ -342,6 +342,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public void checkReferenceConditions() {
+        executor.checkReferenceConditions();
+    }
+
+    @Override
     public boolean isAltered() {
         return executor.isAltered();
     }
