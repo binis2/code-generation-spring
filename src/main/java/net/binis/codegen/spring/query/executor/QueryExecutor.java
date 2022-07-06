@@ -1348,9 +1348,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @SuppressWarnings("unchecked")
     @Override
-    public QueryFunctions<Long, QuerySelectOperation<S, O, R>> size() {
+    public QueryFunctions<Integer, QuerySelectOperation<S, O, R>> size() {
         backEnvelop("size");
         return (QueryFunctions) this;
+    }
+
+    public QuerySelectOperation<S, O, R> size(Integer size) {
+        backEnvelop("size");
+        stripLast(".");
+        operation("=", size);
+        return this;
     }
 
     public void collection(String id, Object value) {
@@ -1623,6 +1630,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     public List<Object> getParams() {
         return params;
     }
+
+    @Override
+    public String getCountQuery() {
+        if (Objects.isNull(countQuery)) {
+            countQuery = new StringBuilder();
+            buildQuery(countQuery, true);
+        }
+        return countQuery.toString();
+    }
+
 
     @Override
     public boolean isAltered() {
