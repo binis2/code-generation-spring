@@ -33,6 +33,8 @@ public interface QueryAccessor {
 
     void checkReferenceConditions();
 
+    String getCountQuery();
+
     boolean isAltered();
 
     void setJoinSupplier(IntSupplier supplier);

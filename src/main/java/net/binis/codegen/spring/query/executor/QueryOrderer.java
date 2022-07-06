@@ -347,6 +347,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
+    public String getCountQuery() {
+        return executor.getCountQuery();
+    }
+
+    @Override
     public boolean isAltered() {
         return executor.isAltered();
     }
