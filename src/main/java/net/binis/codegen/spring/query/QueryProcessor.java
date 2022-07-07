@@ -118,7 +118,7 @@ public class QueryProcessor {
 
     @SuppressWarnings("unchecked")
     private static Object defaultProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
-
+        var time = logQuery ? System.currentTimeMillis() : 0;
         try {
             var original = returnClass;
 
@@ -283,11 +283,11 @@ public class QueryProcessor {
                     throw new GenericCodeGenException("Unknown query return type!");
             }
         } catch (Exception e) {
-            log.error("Failed to execute query\n{}", logQuery(query, params), e);
+            log.error("Failed to execute query\n{}", logQuery(query, params, time), e);
             throw e;
         } finally {
             if (logQuery) {
-                log.info(logQuery(query, params));
+                log.info(logQuery(query, params, time));
             }
         }
     }
@@ -328,11 +328,12 @@ public class QueryProcessor {
                 new TupleBackedProjection(tuple, executor));
     }
 
-    private static String logQuery(String query, List<Object> params) {
+    private static String logQuery(String query, List<Object> params, long time) {
+        var elapsed = time == 0 ? 0 : System.currentTimeMillis() - time;
         if (logParams && nonNull(params)) {
-            return "Query '" + query + "' with params [" + params.stream().map(Objects::toString).map(s -> "(" + s + ")").collect(Collectors.joining(", ")) + "]";
+            return "Query '" + query + "' with params [" + params.stream().map(Objects::toString).map(s -> "(" + s + ")").collect(Collectors.joining(", ")) + "]" + (time != 0 ? " (" + elapsed + "ms.)" : "");
         } else {
-            return "Query '" + query + "'";
+            return "Query '" + query + "'"  + (time != 0 ? " (" + elapsed + "ms.)" : "");
         }
     }
 
