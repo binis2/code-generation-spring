@@ -21,10 +21,10 @@ package net.binis.codegen.spring.query.executor;
  */
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.async.AsyncDispatcher;
+import net.binis.codegen.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.async.AsyncDispatcher;
-import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.spring.collection.ObservableList;
 import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
@@ -54,7 +54,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     private static final String DEFAULT_ALIAS = "u";
     private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
-    public static final String CODE_EXECUTOR = "net.binis.codegen.spring.async.executor.CodeExecutor";
+    public static final String CODE_EXECUTOR = "net.binis.codegen.async.executor.CodeExecutor";
     protected QueryExecutor parent;
     protected int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();

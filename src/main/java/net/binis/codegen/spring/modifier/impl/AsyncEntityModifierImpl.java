@@ -21,19 +21,14 @@ package net.binis.codegen.spring.modifier.impl;
  */
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.async.AsyncDispatcher;
+import net.binis.codegen.async.executor.CodeExecutor;
+import net.binis.codegen.async.executor.impl.BaseAsyncExecutorImpl;
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.async.AsyncDispatcher;
 import net.binis.codegen.spring.async.AsyncModifier;
-import net.binis.codegen.spring.async.executor.CodeExecutor;
-import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
-
-import static java.util.Objects.nonNull;
 
 @Slf4j
 public abstract class AsyncEntityModifierImpl<T, R> extends BaseEntityModifierImpl<T, R> {
@@ -50,60 +45,27 @@ public abstract class AsyncEntityModifierImpl<T, R> extends BaseEntityModifierIm
         return new AsyncImpl();
     }
 
-    protected class AsyncImpl implements AsyncModifier<T, R> {
-
-        private String flow = CodeExecutor.DEFAULT;
-        private long delay;
-        private TimeUnit unit;
-
-        @Override
-        public AsyncModifier<T, R> flow(String flow) {
-            this.flow = flow;
-            return this;
-        }
-
-        @Override
-        public AsyncModifier<T, R> delay(long delay, TimeUnit unit) {
-            this.delay = delay;
-            this.unit = unit;
-            return this;
-        }
-
-        @Override
-        public AsyncModifier<T, R> delay(Duration duration) {
-            this.delay = duration.toMillis();
-            this.unit = TimeUnit.MILLISECONDS;
-            return this;
-        }
+    protected class AsyncImpl extends BaseAsyncExecutorImpl<AsyncModifier<T, R>, R> implements AsyncModifier<T, R> {
 
         @Override
         public CompletableFuture<R> save() {
-            return execute(AsyncEntityModifierImpl.this::save);
+            return internalExecute(AsyncEntityModifierImpl.this::save);
         }
 
         @Override
         public CompletableFuture<R> delete() {
-            return execute(AsyncEntityModifierImpl.this::delete);
+            return internalExecute(AsyncEntityModifierImpl.this::delete);
         }
 
         @Override
         public CompletableFuture<R> execute(Consumer<T> task) {
-            return execute(() ->
+            return internalExecute(() ->
                     AsyncEntityModifierImpl.this.transaction(m -> {
                         task.accept(m);
                         return null;
                     }));
         }
 
-        private CompletableFuture<R> execute(Supplier<R> supplier) {
-            var executor = CodeFactory.create(AsyncDispatcher.class).flow(flow);
-
-            if (delay > 0 && nonNull(unit)) {
-                executor = CompletableFuture.delayedExecutor(delay, unit, executor);
-            }
-
-            return CodeGenCompletableFuture.newSupplyAsync(executor, supplier);
-        }
     }
 
 }
