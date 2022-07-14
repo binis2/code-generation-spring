@@ -156,6 +156,9 @@ public class QueryProcessor {
                 hints.forEach(q::setHint);
             }
 
+            if (ResultType.EXISTS.equals(resultType)) {
+                q.setMaxResults(1);
+            } else
             if (nonNull(pageable) && !ResultType.COUNT.equals(resultType)) {
                 q.setFirstResult((int) pageable.getOffset());
                 if (pageable.getPageSize() > -1) {
@@ -197,6 +200,8 @@ public class QueryProcessor {
                     } catch (NoResultException ex) {
                         return Optional.empty();
                     }
+                case EXISTS:
+                    return nonNull(q.getSingleResult());
                 case COUNT:
                     return q.getSingleResult();
                 case LIST:
@@ -343,6 +348,7 @@ public class QueryProcessor {
         LIST,
         PAGE,
         COUNT,
+        EXISTS,
         REMOVE,
         EXECUTE,
         TUPLE,

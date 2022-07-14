@@ -342,18 +342,13 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     }
 
     @Override
-    public void checkReferenceConditions() {
-        executor.checkReferenceConditions();
-    }
-
-    @Override
     public String getCountQuery() {
         return executor.getCountQuery();
     }
 
     @Override
-    public boolean isAltered() {
-        return executor.isAltered();
+    public String getExistsQuery() {
+        return executor.getExistsQuery();
     }
 
     @Override

@@ -64,12 +64,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     private Class<?> returnClass;
     private Class<?> aggregateClass;
     private Class<?> mapClass;
+    private Class<?> existsClass;
     private Pageable pageable;
     private boolean isNative;
     private boolean isCustom;
     private boolean isModifying;
     private boolean prepared;
-    private boolean altered;
     private O order;
     private A aggregate;
     private String enveloped = null;
@@ -89,6 +89,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     private final StringBuilder query = new StringBuilder();
     private StringBuilder countQuery;
+    private StringBuilder existsQuery;
     protected String alias = DEFAULT_ALIAS;
     private StringBuilder select;
     private StringBuilder where;
@@ -335,7 +336,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             _order = orderStart();
         }
 
-        if (_order.length() == 0 || _order.charAt(_order.length() -1) != '.') {
+        if (_order.length() == 0 || _order.charAt(_order.length() - 1) != '.') {
             _order.append(' ').append(alias).append(".");
         }
 
@@ -507,21 +508,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     public long count() {
         resultType = QueryProcessor.ResultType.COUNT;
-        mapClass = Long.class;
-        if (Objects.isNull(select)) {
-            select = new StringBuilder("count(*)");
-        } else {
-            if (select.toString().equals("distinct " + alias + ",")) {
-                select = new StringBuilder("count(distinct " + alias + ")");
-            } else {
-                select = new StringBuilder("count(*)");
-            }
-        }
-        altered = true;
 
         if (Objects.isNull(countQuery)) {
-            countQuery = new StringBuilder();
-            buildQuery(countQuery, true);
+            getCountQuery();
         }
 
         return (long) execute();
@@ -834,20 +823,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public boolean exists() {
-        var oldPageable = pageable;
-        pagedLoop = true;
-        try {
-            try {
-                pageable = PageRequest.of(0, 1);
-                return reference().isPresent();
-            } catch (QueryBuilderException e) {
-                //Do nothing
-            }
-            return top().isPresent();
-        } finally {
-            pageable = oldPageable;
-            pagedLoop = false;
+        resultType = QueryProcessor.ResultType.EXISTS;
+
+        if (Objects.isNull(existsQuery)) {
+            getExistsQuery();
         }
+        return (boolean) execute();
     }
 
     @Override
@@ -889,21 +870,32 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public Object execute() {
+        var retClass = returnClass;
         StringBuilder actualQuery;
         if (resultType.equals(QueryProcessor.ResultType.COUNT) && nonNull(countQuery)) {
             actualQuery = countQuery;
+            retClass = Long.class;
         } else {
-            prepare();
-            actualQuery = query;
-        }
-        if (nonNull(aggregateClass) && fieldsCount == 1) {
-            returnClass = aggregateClass;
-        } else if (selectOrAggregate) {
-            returnClass = Tuple.class;
+            if (resultType.equals(QueryProcessor.ResultType.EXISTS) && nonNull(existsQuery)) {
+                actualQuery = existsQuery;
+                if (nonNull(existsClass)) {
+                    retClass = existsClass;
+                }
+            } else {
+                prepare();
+                actualQuery = query;
+            }
+
+            if (nonNull(aggregateClass) && fieldsCount == 1) {
+                retClass = aggregateClass;
+            } else if (selectOrAggregate) {
+                retClass = Tuple.class;
+            }
         }
 
+        var r = retClass;
         return withRes(manager ->
-                QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
+                QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, r, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
     private void buildQuery(StringBuilder query, boolean countQuery) {
@@ -1586,6 +1578,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             stripLast(where, " ");
             stripToLast(where, " ");
         }
+        if (Objects.isNull(where) || where.length() == 0) {
+            skipNext = true;
+        }
         return this;
     }
 
@@ -1634,16 +1629,40 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public String getCountQuery() {
         if (Objects.isNull(countQuery)) {
+            String old = null;
+
+            if (Objects.isNull(select)) {
+                select = new StringBuilder("count(*)");
+            } else {
+                old = select.toString();
+                if (select.toString().equals("distinct " + alias + ",")) {
+                    select = new StringBuilder("count(distinct " + alias + ")");
+                } else {
+                    select = new StringBuilder("count(*)");
+                }
+            }
+
             countQuery = new StringBuilder();
             buildQuery(countQuery, true);
+            select = nonNull(old) ? new StringBuilder(old) : null;
         }
         return countQuery.toString();
     }
 
-
     @Override
-    public boolean isAltered() {
-        return altered;
+    public String getExistsQuery() {
+        if (Objects.isNull(existsQuery)) {
+            var oldSelect = nonNull(select) ? select.toString() : null;
+            try {
+                checkReferenceConditions();
+            } catch (QueryBuilderException e) {
+                //Do nothing
+            }
+            existsQuery = new StringBuilder();
+            buildQuery(existsQuery, true);
+            select = nonNull(oldSelect) ? new StringBuilder(oldSelect) : null;
+        }
+        return existsQuery.toString();
     }
 
     @Override
@@ -1840,8 +1859,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
 
         select = new StringBuilder(entry.getName());
-        mapClass = entry.getType();
-        altered = true;
+        existsClass = entry.getType();
     }
 
     private StringBuilder $current() {
