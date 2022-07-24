@@ -27,19 +27,22 @@ import org.springframework.data.domain.Pageable;
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
 import javax.persistence.Tuple;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 
-public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrderOperation<Object, R>, QueryJoinAggregateOperation, QuerySelf {
+@SuppressWarnings("unchecked")
+public class QueryOrderer<R> implements QueryAccessor, QueryOrderOperation<Object, R>, QueryJoinAggregateOperation, QuerySelf, QueryIdentifier<Object, R, R> {
 
-    protected final QueryExecutor<?, ?, ?, R, ?, ?, ?> executor;
+    protected final QueryExecutor<Object, Object, Object, R, Object, Object, Object> executor;
     protected final Function<String, Object> func;
 
-    public QueryOrderer(QueryExecutor<?, ?, ?, R, ?, ?, ?> executor, Function<String, Object> func) {
+    public QueryOrderer(QueryExecutor<Object, Object, Object, R, Object, Object, Object> executor, Function<String, Object> func) {
         this.executor = executor;
+        executor.wrapper = this;
         this.func = func;
     }
 
@@ -240,14 +243,14 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
         return executor.print();
     }
 
-    public Object script(String script) {
+    public R script(String script) {
         executor.script(script);
-        return this;
+        return (R) this;
     }
 
-    public Object script(String script, Object... params) {
+    public R script(String script, Object... params) {
         executor.script(script, params);
-        return this;
+        return (R) this;
     }
 
     public Object _open() {
@@ -364,5 +367,165 @@ public class QueryOrderer<R> implements QueryAccessor, QueryExecute<R>, QueryOrd
     @Override
     public Object _self() {
         return executor._self();
+    }
+
+    @Override
+    public QueryFunctions length() {
+        return executor.length();
+    }
+
+    @Override
+    public R equal(Queryable query) {
+        return (R) executor.equal(query);
+    }
+
+    @Override
+    public R in(Queryable query) {
+        return (R) executor.in(query);
+    }
+
+    @Override
+    public R isNull() {
+        return (R) executor.isNull();
+    }
+
+    @Override
+    public R isNotNull() {
+        return (R) executor.isNotNull();
+    }
+
+    @Override
+    public R like(String value) {
+        return (R) executor.like(value);
+    }
+
+    @Override
+    public R starts(String value) {
+        return (R) executor.starts(value);
+    }
+
+    @Override
+    public R ends(String value) {
+        return (R) executor.ends(value);
+    }
+
+    @Override
+    public R contains(String value) {
+        return (R) executor.contains(value);
+    }
+
+    @Override
+    public R greater(Queryable query) {
+        return (R) executor.greater(query);
+    }
+
+    @Override
+    public R greaterEqual(Queryable query) {
+        return (R) executor.greaterEqual(query);
+    }
+
+    @Override
+    public R less(Queryable query) {
+        return (R) executor.less(query);
+    }
+
+    @Override
+    public R lessEqual(Queryable query) {
+        return (R) executor.lessEqual(query);
+    }
+
+    @Override
+    public R lessEqual(Object value) {
+        return (R) executor.lessEqual(value);
+    }
+
+    @Override
+    public R less(Object value) {
+        return (R) executor.less(value);
+    }
+
+    @Override
+    public R greaterEqual(Object value) {
+        return (R) executor.greaterEqual(value);
+    }
+
+    @Override
+    public R greater(Object value) {
+        return (R) executor.greater(value);
+    }
+
+    @Override
+    public R in(Object... values) {
+        return (R) executor.in(values);
+    }
+
+    @Override
+    public R in(Collection<Object> values) {
+        return (R) executor.in(values);
+    }
+
+    @Override
+    public R between(Object from, Object to) {
+        return (R) executor.between(from, to);
+    }
+
+    @Override
+    public R equal(Object value) {
+        return (R) executor.equal(value);
+    }
+
+    @Override
+    public QueryFunctions<Integer, R> size() {
+        return (QueryFunctions) executor.size();
+    }
+
+    @Override
+    public R size(Integer size) {
+        return (R) executor.size(size);
+    }
+
+    @Override
+    public R contains(Object value) {
+        return (R) executor.contains(value);
+    }
+
+    @Override
+    public R notContains(Object value) {
+        return (R) executor.notContains(value);
+    }
+
+    @Override
+    public R containsAll(Collection<Object> list) {
+        return (R) executor.containsAll(list);
+    }
+
+    @Override
+    public R containsOne(Collection<Object> list) {
+        return (R) executor.containsOne(list);
+    }
+
+    @Override
+    public R containsNone(Collection<Object> list) {
+        return (R) executor.containsNone(list);
+    }
+
+    @Override
+    public R isEmpty() {
+        return (R) executor.isEmpty();
+    }
+
+    @Override
+    public R isNotEmpty() {
+        return (R) executor.isNotEmpty();
+    }
+
+    @Override
+    public R joinFetch() {
+        return (R) executor.joinFetch();
+    }
+
+    @Override
+    public R leftJoinFetch() {
+        return (R) executor.leftJoinFetch();
     }
 }

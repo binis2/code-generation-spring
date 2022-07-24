@@ -36,6 +36,7 @@ import org.springframework.data.domain.Pageable;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
+import javax.persistence.Query;
 import javax.persistence.Tuple;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -50,12 +51,14 @@ import static java.util.Objects.nonNull;
 
 @SuppressWarnings("unchecked")
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F, U>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed, UpdatableQuery {
+public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistenceOperations<T, R> implements QueryAccessor, QueryIdentifier<T, QuerySelectOperation<S, O, R>, R>, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F, U>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed, UpdatableQuery {
 
     private static final String DEFAULT_ALIAS = "u";
     private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
     public static final String CODE_EXECUTOR = "net.binis.codegen.async.executor.CodeExecutor";
     protected QueryExecutor parent;
+    protected Object wrapper;
+
     protected int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
@@ -184,18 +187,36 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
 
-    public QueryExecutor<T, S, O, R, A, F, U> identifier(String id) {
-        if ($fields()) {
-            var _sel = $select();
+    public QueryIdentifier identifier(String id) {
+        var _par = nonNull(parent) ? $parent() : this;
+        if (_par.fields) {
+            var _sel = _par.select;
             if (_sel.length() == 0 || _sel.charAt(_sel.length() - 1) != '.') {
-                $select().append(alias).append(".");
+                _sel.append(alias).append(".");
             }
-            _sel.append(id).append(" as ").append(id).append(",");
-            $fieldsInc();
-        } else if ($current() == $orderPart()) {
+            _sel.append(id);
+            if (nonNull(_par.aggregate)) {
+                if (!_par.distinct && !_par.isGroup) {
+                    _sel.append(")");
+                } else {
+                    if (_par.isGroup) {
+                        if (Objects.isNull(_par.group)) {
+                            _par.group = new StringBuilder();
+                        }
+                        _par.group.append(_par.current.substring(_par.lastIdStartPos)).append(",");
+                    }
+                    _par.distinct = false;
+                    _par.isGroup = false;
+                }
+            } else {
+                _sel.append(" as ").append(id);
+            }
+            _sel.append(",");
+            _par.fieldsCount++;
+        } else if (_par.current == _par.orderPart) {
             orderIdentifier(id);
         } else {
-            var _where = $where();
+            var _where = _par.where;
             if (Objects.isNull(_where)) {
                 _where = whereStart();
             }
@@ -379,6 +400,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         select = new StringBuilder();
         current = select;
         selectOrAggregate = true;
+        fields = true;
         return aggregate;
     }
 
@@ -1725,21 +1747,36 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public Object _self() {
-        var _current = $current();
+        var _par = nonNull(parent) ? $parent() : this;
+        var _current = _par.current;
         if (Objects.isNull(parent)) {
             _current.append(alias);
             lastIdentifier = new StringBuilder("self");
         }
         stripLast(".");
-        if ($fields()) {
-            _current.append(" as ").append(lastIdentifier);
-            $fieldsInc();
+        if (_par.fields) {
+            if (Objects.isNull(_par.aggregate)) {
+                _current.append(" as ").append(lastIdentifier);
+            } else {
+                if (!_par.distinct && !_par.isGroup) {
+                    _current.append(")");
+                } else {
+                    if (_par.isGroup) {
+                        if (Objects.isNull(_par.group)) {
+                            _par.group = new StringBuilder();
+                        }
+                        _par.group.append(_par.current.substring(_par.lastIdStartPos)).append(",");
+                    }
+                    _par.distinct = false;
+                    _par.isGroup = false;
+                }
+            }
+            _par.fieldsCount++;
         }
         _current.append(",");
 
-        var _aggregate = $aggregate();
-        if (nonNull(_aggregate)) {
-            return _aggregate;
+        if (nonNull(_par.aggregate)) {
+            return _par.aggregate;
         }
 
         return $retParent();
@@ -1919,6 +1956,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return aggregate;
     }
 
+    private boolean $distinct() {
+        if (nonNull(parent)) {
+            return $parent().distinct;
+        }
+        return distinct;
+    }
+
     private void $fieldsInc() {
         if (nonNull(parent)) {
             $parent().fieldsCount++;
@@ -1937,7 +1981,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return p;
     }
 
-    private QueryExecutor $retParent() {
+    private QueryIdentifier $retParent() {
 
         if (Objects.isNull(parent)) {
             return this;
@@ -1951,6 +1995,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 last = p;
             }
 
+        }
+
+        if (nonNull(last.parent) && nonNull(last.parent.aggregate)) {
+            return (QueryIdentifier) last.parent.aggregate;
         }
 
         return last;
