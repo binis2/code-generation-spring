@@ -2024,4 +2024,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return new PageImpl(org.getContent(), org.getPageable(), count());
     }
 
+    public void _alias(String alias) {
+        var _sel = $select();
+        stripLast(_sel, ",");
+        _sel.append(" as ").append(alias).append(",");
+    }
 }

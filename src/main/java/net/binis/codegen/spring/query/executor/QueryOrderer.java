@@ -314,6 +314,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryOrderOperation<Objec
         return this;
     }
 
+    public QueryAggregateOperation alias(String alias) {
+        executor._alias(alias);
+        return this;
+    }
+
     public Object where() {
         executor.whereStart();
         return executor;
