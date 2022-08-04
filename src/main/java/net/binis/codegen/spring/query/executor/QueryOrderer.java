@@ -224,6 +224,11 @@ public class QueryOrderer<R> implements QueryAccessor, QueryOrderOperation<Objec
     }
 
     @Override
+    public boolean notExists() {
+        return executor.notExists();
+    }
+
+    @Override
     public void delete() {
         executor.delete();
     }

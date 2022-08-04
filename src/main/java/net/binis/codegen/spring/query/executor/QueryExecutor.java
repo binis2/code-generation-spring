@@ -854,6 +854,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     @Override
+    public boolean notExists() {
+        return !exists();
+    }
+
+    @Override
     public void delete() {
         remove();
     }

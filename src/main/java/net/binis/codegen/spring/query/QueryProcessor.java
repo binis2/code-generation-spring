@@ -201,9 +201,17 @@ public class QueryProcessor {
                         return Optional.empty();
                     }
                 case EXISTS:
-                    return nonNull(q.getSingleResult());
+                    try {
+                        return nonNull(q.getSingleResult());
+                    } catch (NoResultException ex) {
+                        return false;
+                    }
                 case COUNT:
-                    return q.getSingleResult();
+                    try {
+                        return q.getSingleResult();
+                    } catch (NoResultException ex) {
+                        return 0;
+                    }
                 case LIST:
                     var rslt = q.getResultList();
 
