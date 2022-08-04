@@ -71,6 +71,10 @@ public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBra
         return executor.in(query);
     }
 
+    public QuerySelectOperation equal(Queryable query) {
+        return executor.equal(query);
+    }
+
     public QuerySelectOperation isNull() {
         return executor.isNull();
     }
