@@ -21,10 +21,10 @@ package net.binis.codegen.spring.query.executor;
  */
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.async.AsyncDispatcher;
+import net.binis.codegen.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.creator.EntityCreator;
 import net.binis.codegen.factory.CodeFactory;
-import net.binis.codegen.spring.async.AsyncDispatcher;
-import net.binis.codegen.spring.async.executor.CodeGenCompletableFuture;
 import net.binis.codegen.spring.collection.ObservableList;
 import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import net.binis.codegen.spring.query.*;
@@ -36,6 +36,7 @@ import org.springframework.data.domain.Pageable;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
+import javax.persistence.Query;
 import javax.persistence.Tuple;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -50,12 +51,14 @@ import static java.util.Objects.nonNull;
 
 @SuppressWarnings("unchecked")
 @Slf4j
-public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistenceOperations<T, R> implements QueryAccessor, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F, U>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed, UpdatableQuery {
+public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistenceOperations<T, R> implements QueryAccessor, QueryIdentifier<T, QuerySelectOperation<S, O, R>, R>, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F, U>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed, UpdatableQuery {
 
     private static final String DEFAULT_ALIAS = "u";
     private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
-    public static final String CODE_EXECUTOR = "net.binis.codegen.spring.async.executor.CodeExecutor";
+    public static final String CODE_EXECUTOR = "net.binis.codegen.async.executor.CodeExecutor";
     protected QueryExecutor parent;
+    protected Object wrapper;
+
     protected int fieldsCount = 0;
     private List<Object> params = new ArrayList<>();
     private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
@@ -64,12 +67,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     private Class<?> returnClass;
     private Class<?> aggregateClass;
     private Class<?> mapClass;
+    private Class<?> existsClass;
     private Pageable pageable;
     private boolean isNative;
     private boolean isCustom;
     private boolean isModifying;
     private boolean prepared;
-    private boolean altered;
     private O order;
     private A aggregate;
     private String enveloped = null;
@@ -89,6 +92,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     private final StringBuilder query = new StringBuilder();
     private StringBuilder countQuery;
+    private StringBuilder existsQuery;
     protected String alias = DEFAULT_ALIAS;
     private StringBuilder select;
     private StringBuilder where;
@@ -183,18 +187,36 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
 
-    public QueryExecutor<T, S, O, R, A, F, U> identifier(String id) {
-        if ($fields()) {
-            var _sel = $select();
+    public QueryIdentifier identifier(String id) {
+        var _par = nonNull(parent) ? $parent() : this;
+        if (_par.fields) {
+            var _sel = _par.select;
             if (_sel.length() == 0 || _sel.charAt(_sel.length() - 1) != '.') {
-                $select().append(alias).append(".");
+                _sel.append(alias).append(".");
             }
-            _sel.append(id).append(" as ").append(id).append(",");
-            $fieldsInc();
-        } else if ($current() == $orderPart()) {
+            _sel.append(id);
+            if (nonNull(_par.aggregate)) {
+                if (!_par.distinct && !_par.isGroup) {
+                    _sel.append(")");
+                } else {
+                    if (_par.isGroup) {
+                        if (Objects.isNull(_par.group)) {
+                            _par.group = new StringBuilder();
+                        }
+                        _par.group.append(_par.current.substring(_par.lastIdStartPos)).append(",");
+                    }
+                    _par.distinct = false;
+                    _par.isGroup = false;
+                }
+            } else {
+                _sel.append(" as ").append(id);
+            }
+            _sel.append(",");
+            _par.fieldsCount++;
+        } else if (_par.current == _par.orderPart) {
             orderIdentifier(id);
         } else {
-            var _where = $where();
+            var _where = _par.where;
             if (Objects.isNull(_where)) {
                 _where = whereStart();
             }
@@ -335,7 +357,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             _order = orderStart();
         }
 
-        if (_order.length() == 0 || _order.charAt(_order.length() -1) != '.') {
+        if (_order.length() == 0 || _order.charAt(_order.length() - 1) != '.') {
             _order.append(' ').append(alias).append(".");
         }
 
@@ -378,6 +400,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         select = new StringBuilder();
         current = select;
         selectOrAggregate = true;
+        fields = true;
         return aggregate;
     }
 
@@ -507,21 +530,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     public long count() {
         resultType = QueryProcessor.ResultType.COUNT;
-        mapClass = Long.class;
-        if (Objects.isNull(select)) {
-            select = new StringBuilder("count(*)");
-        } else {
-            if (select.toString().equals("distinct " + alias + ",")) {
-                select = new StringBuilder("count(distinct " + alias + ")");
-            } else {
-                select = new StringBuilder("count(*)");
-            }
-        }
-        altered = true;
 
         if (Objects.isNull(countQuery)) {
-            countQuery = new StringBuilder();
-            buildQuery(countQuery, true);
+            getCountQuery();
         }
 
         return (long) execute();
@@ -530,7 +541,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public Optional<R> top() {
         resultType = QueryProcessor.ResultType.SINGLE;
-        pageable = PageRequest.of(0, 1);
+        if (Objects.isNull(pageable) || pageable.getPageNumber() != 0 || pageable.getPageSize() != 1) {
+            pageable = PageRequest.of(0, 1);
+        }
         return get();
     }
 
@@ -832,13 +845,17 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public boolean exists() {
-        try {
-            pageable = PageRequest.of(0, 1);
-            return reference().isPresent();
-        } catch (QueryBuilderException e) {
-            //Do nothing
+        resultType = QueryProcessor.ResultType.EXISTS;
+
+        if (Objects.isNull(existsQuery)) {
+            getExistsQuery();
         }
-        return top().isPresent();
+        return (boolean) execute();
+    }
+
+    @Override
+    public boolean notExists() {
+        return !exists();
     }
 
     @Override
@@ -880,21 +897,32 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public Object execute() {
+        var retClass = returnClass;
         StringBuilder actualQuery;
         if (resultType.equals(QueryProcessor.ResultType.COUNT) && nonNull(countQuery)) {
             actualQuery = countQuery;
+            retClass = Long.class;
         } else {
-            prepare();
-            actualQuery = query;
-        }
-        if (nonNull(aggregateClass) && fieldsCount == 1) {
-            returnClass = aggregateClass;
-        } else if (selectOrAggregate) {
-            returnClass = Tuple.class;
+            if (resultType.equals(QueryProcessor.ResultType.EXISTS) && nonNull(existsQuery)) {
+                actualQuery = existsQuery;
+                if (nonNull(existsClass)) {
+                    retClass = existsClass;
+                }
+            } else {
+                prepare();
+                actualQuery = query;
+            }
+
+            if (nonNull(aggregateClass) && fieldsCount == 1) {
+                retClass = aggregateClass;
+            } else if (selectOrAggregate) {
+                retClass = Tuple.class;
+            }
         }
 
+        var r = retClass;
         return withRes(manager ->
-                QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, returnClass, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
+                QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, r, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
     private void buildQuery(StringBuilder query, boolean countQuery) {
@@ -1339,9 +1367,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @SuppressWarnings("unchecked")
     @Override
-    public QueryFunctions<Long, QuerySelectOperation<S, O, R>> size() {
+    public QueryFunctions<Integer, QuerySelectOperation<S, O, R>> size() {
         backEnvelop("size");
         return (QueryFunctions) this;
+    }
+
+    public QuerySelectOperation<S, O, R> size(Integer size) {
+        backEnvelop("size");
+        stripLast(".");
+        operation("=", size);
+        return this;
     }
 
     public void collection(String id, Object value) {
@@ -1570,6 +1605,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             stripLast(where, " ");
             stripToLast(where, " ");
         }
+        if (Objects.isNull(where) || where.length() == 0) {
+            skipNext = true;
+        }
         return this;
     }
 
@@ -1616,8 +1654,42 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     @Override
-    public boolean isAltered() {
-        return altered;
+    public String getCountQuery() {
+        if (Objects.isNull(countQuery)) {
+            String old = null;
+
+            if (Objects.isNull(select)) {
+                select = new StringBuilder("count(*)");
+            } else {
+                old = select.toString();
+                if (select.toString().equals("distinct " + alias + ",")) {
+                    select = new StringBuilder("count(distinct " + alias + ")");
+                } else {
+                    select = new StringBuilder("count(*)");
+                }
+            }
+
+            countQuery = new StringBuilder();
+            buildQuery(countQuery, true);
+            select = nonNull(old) ? new StringBuilder(old) : null;
+        }
+        return countQuery.toString();
+    }
+
+    @Override
+    public String getExistsQuery() {
+        if (Objects.isNull(existsQuery)) {
+            var oldSelect = nonNull(select) ? select.toString() : null;
+            try {
+                checkReferenceConditions();
+            } catch (QueryBuilderException e) {
+                //Do nothing
+            }
+            existsQuery = new StringBuilder();
+            buildQuery(existsQuery, true);
+            select = nonNull(oldSelect) ? new StringBuilder(oldSelect) : null;
+        }
+        return existsQuery.toString();
     }
 
     @Override
@@ -1680,21 +1752,36 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public Object _self() {
-        var _current = $current();
+        var _par = nonNull(parent) ? $parent() : this;
+        var _current = _par.current;
         if (Objects.isNull(parent)) {
             _current.append(alias);
             lastIdentifier = new StringBuilder("self");
         }
         stripLast(".");
-        if ($fields()) {
-            _current.append(" as ").append(lastIdentifier);
-            $fieldsInc();
+        if (_par.fields) {
+            if (Objects.isNull(_par.aggregate)) {
+                _current.append(" as ").append(lastIdentifier);
+            } else {
+                if (!_par.distinct && !_par.isGroup) {
+                    _current.append(")");
+                } else {
+                    if (_par.isGroup) {
+                        if (Objects.isNull(_par.group)) {
+                            _par.group = new StringBuilder();
+                        }
+                        _par.group.append(_par.current.substring(_par.lastIdStartPos)).append(",");
+                    }
+                    _par.distinct = false;
+                    _par.isGroup = false;
+                }
+            }
+            _par.fieldsCount++;
         }
         _current.append(",");
 
-        var _aggregate = $aggregate();
-        if (nonNull(_aggregate)) {
-            return _aggregate;
+        if (nonNull(_par.aggregate)) {
+            return _par.aggregate;
         }
 
         return $retParent();
@@ -1798,7 +1885,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
 
-    private void checkReferenceConditions() {
+    public void checkReferenceConditions() {
         if (isCustom || isNative) {
             throw new QueryBuilderException("Can't get reference for custom queries!");
         }
@@ -1814,8 +1901,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
 
         select = new StringBuilder(entry.getName());
-        mapClass = entry.getType();
-        altered = true;
+        existsClass = entry.getType();
     }
 
     private StringBuilder $current() {
@@ -1875,6 +1961,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return aggregate;
     }
 
+    private boolean $distinct() {
+        if (nonNull(parent)) {
+            return $parent().distinct;
+        }
+        return distinct;
+    }
+
     private void $fieldsInc() {
         if (nonNull(parent)) {
             $parent().fieldsCount++;
@@ -1893,7 +1986,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return p;
     }
 
-    private QueryExecutor $retParent() {
+    private QueryIdentifier $retParent() {
 
         if (Objects.isNull(parent)) {
             return this;
@@ -1907,6 +2000,10 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 last = p;
             }
 
+        }
+
+        if (nonNull(last.parent) && nonNull(last.parent.aggregate)) {
+            return (QueryIdentifier) last.parent.aggregate;
         }
 
         return last;
@@ -1932,4 +2029,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return new PageImpl(org.getContent(), org.getPageable(), count());
     }
 
+    public void _alias(String alias) {
+        var _sel = $select();
+        stripLast(_sel, ",");
+        _sel.append(" as ").append(alias).append(",");
+    }
 }

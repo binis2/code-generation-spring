@@ -30,6 +30,7 @@ public interface QueryFetch<R, T> {
     R leftFetch();
     R in(List<T> list);
     R in(Queryable query);
+    R equal(Queryable query);
     R isNull();
     R isNotNull();
 

@@ -1,10 +1,10 @@
-package net.binis.codegen.spring.async;
+package net.binis.codegen.spring.query.executor;
 
 /*-
  * #%L
  * code-generator-spring
  * %%
- * Copyright (C) 2021 Binis Belev
+ * Copyright (C) 2021 - 2022 Binis Belev
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,10 @@ package net.binis.codegen.spring.async;
  * #L%
  */
 
-import java.util.concurrent.Executor;
+import net.binis.codegen.spring.query.QueryCollectionFunctions;
+import net.binis.codegen.spring.query.QueryExecute;
+import net.binis.codegen.spring.query.QueryFunctions;
 
-public interface AsyncDispatcher {
-
-    Executor flow(String flow);
-    Executor _default();
+interface QueryIdentifier<T, QFR, QR> extends QueryExecute<QR>, QueryFunctions<T, QFR>, QueryCollectionFunctions<T, QFR> {
 
 }

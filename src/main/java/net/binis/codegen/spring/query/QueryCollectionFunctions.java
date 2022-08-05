@@ -24,7 +24,8 @@ import java.util.Collection;
 
 public interface QueryCollectionFunctions<T, R> {
 
-    QueryFunctions<Long, R> size();
+    QueryFunctions<Integer, R> size();
+    R size(Integer size);
     R contains(T value);
     R notContains(T value);
     R containsAll(Collection<T> list);

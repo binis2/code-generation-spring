@@ -71,6 +71,7 @@ public interface QueryExecute<R> extends Queryable {
     QueryFilter<R> filter(String name);
 
     boolean exists();
+    boolean notExists();
     void delete();
     int remove();
     int run();

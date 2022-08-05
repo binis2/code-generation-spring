@@ -57,16 +57,22 @@ public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBra
         return executor.leftJoinFetch();
     }
 
+    @SuppressWarnings("unchecked")
     public QuerySelectOperation in(List list) {
         return executor.in(list);
     }
 
+    @SuppressWarnings("unchecked")
     public QuerySelectOperation in(Object... values) {
         return executor.in(values);
     }
 
     public QuerySelectOperation in(Queryable query) {
         return executor.in(query);
+    }
+
+    public QuerySelectOperation equal(Queryable query) {
+        return executor.equal(query);
     }
 
     public QuerySelectOperation isNull() {
@@ -83,6 +89,7 @@ public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBra
         return (T) executor.script(script);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public T script(String script, Object... params) {
         return (T) executor.script(script, params);

@@ -31,7 +31,8 @@ public interface QueryAccessor {
     StringBuilder getAccessorOrder();
     List<Object> getParams();
 
-    boolean isAltered();
+    String getCountQuery();
+    String getExistsQuery();
 
     void setJoinSupplier(IntSupplier supplier);
     void setParams(List<Object> params);
