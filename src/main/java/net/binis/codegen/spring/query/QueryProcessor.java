@@ -31,8 +31,6 @@ import net.binis.codegen.tools.Reflection;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.projection.ProjectionFactory;
-import org.springframework.data.projection.SpelAwareProxyProjectionFactory;
 
 import javax.persistence.*;
 import java.lang.reflect.Method;
@@ -50,8 +48,6 @@ import static java.util.Objects.nonNull;
 public class QueryProcessor {
 
     private static Processor processor = defaultProcessor();
-    private static final ProjectionFactory factory = new SpelAwareProxyProjectionFactory();
-
     private static Class<?> sessionClass;
     private static Method enableFilter;
     private static Method disableFilter;
@@ -320,7 +316,7 @@ public class QueryProcessor {
 
     private static Object map(Class<?> mapClass, Object result) {
         if (nonNull(result) && mapClass.isInterface()) {
-            return factory.createProjection(mapClass, result);
+            return CodeFactory.cast(result, mapClass);
         }
         return result;
     }
