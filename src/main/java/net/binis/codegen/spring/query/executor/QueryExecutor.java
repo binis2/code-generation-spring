@@ -36,7 +36,6 @@ import org.springframework.data.domain.Pageable;
 
 import javax.persistence.FlushModeType;
 import javax.persistence.LockModeType;
-import javax.persistence.Query;
 import javax.persistence.Tuple;
 import java.lang.reflect.Method;
 import java.time.Duration;

@@ -27,7 +27,11 @@ public interface BaseEntityModifier<T, R> extends BaseModifier<T, R> {
 
     R save();
 
+    <P> P save(Class<P> projection);
+
     R saveAndFlush();
+
+    <P> P saveAndFlush(Class<P> projection);
 
     R merge();
 

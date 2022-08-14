@@ -21,6 +21,7 @@ package net.binis.codegen.spring.modifier.impl;
  */
 
 import lombok.extern.slf4j.Slf4j;
+import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.modifier.Modifiable;
 import net.binis.codegen.spring.modifier.BaseEntityModifier;
 import net.binis.codegen.spring.modifier.BasePersistenceOperations;
@@ -40,11 +41,22 @@ public abstract class BaseEntityModifierImpl<T, R> extends BasePersistenceOperat
         return parent;
     }
 
+    public <P> P save(Class<P> projection) {
+        save();
+        return withProjection(projection);
+    }
+
     public R saveAndFlush() {
         save();
         with(EntityManager::flush);
         return parent;
     }
+
+    public <P> P saveAndFlush(Class<P> projection) {
+        saveAndFlush();
+        return withProjection(projection);
+    }
+
 
     public R merge() {
         return withRes(manager -> manager.merge(parent));
@@ -69,5 +81,10 @@ public abstract class BaseEntityModifierImpl<T, R> extends BasePersistenceOperat
     public R transaction(Function<T, R> function) {
         return withRes(manager -> function.apply((T)((Modifiable) manager.merge(parent)).with()));
     }
+
+    protected <P> P withProjection(Class<P> projection) {
+        return CodeFactory.projection(parent, projection);
+    }
+
 
 }
