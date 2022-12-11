@@ -20,13 +20,13 @@ package net.binis.codegen.spring.query.executor;
  * #L%
  */
 
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.Tuple;
 import net.binis.codegen.spring.query.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.FlushModeType;
-import javax.persistence.LockModeType;
-import javax.persistence.Tuple;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;

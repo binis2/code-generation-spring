@@ -20,6 +20,9 @@ package net.binis.codegen.spring.query.executor;
  * #L%
  */
 
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.Tuple;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.async.AsyncDispatcher;
 import net.binis.codegen.async.executor.CodeGenCompletableFuture;
@@ -34,9 +37,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.FlushModeType;
-import javax.persistence.LockModeType;
-import javax.persistence.Tuple;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.*;

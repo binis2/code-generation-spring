@@ -20,6 +20,7 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
+import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
@@ -32,7 +33,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
-import javax.persistence.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;

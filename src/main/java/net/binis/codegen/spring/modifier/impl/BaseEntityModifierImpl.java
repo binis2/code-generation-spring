@@ -20,13 +20,13 @@ package net.binis.codegen.spring.modifier.impl;
  * #L%
  */
 
+import jakarta.persistence.EntityManager;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.modifier.Modifiable;
 import net.binis.codegen.spring.modifier.BaseEntityModifier;
 import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 
-import javax.persistence.EntityManager;
 import java.util.function.Function;
 
 @Slf4j

@@ -20,6 +20,8 @@ package net.binis.codegen.spring.modifier;
  * #L%
  */
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.modifier.impl.BaseModifierImpl;
@@ -30,8 +32,6 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 import java.util.function.Consumer;
 import java.util.function.Function;
 

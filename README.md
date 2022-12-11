@@ -10,7 +10,7 @@ For full project examples please see [https://github.com/binis2/code-generation-
     <dependency>
         <groupId>dev.binis</groupId>
         <artifactId>code-generator-spring</artifactId>
-        <version>0.4.3</version>
+        <version>1.0.0</version>
     </dependency>
 ```
 

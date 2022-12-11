@@ -20,12 +20,12 @@ package net.binis.codegen.spring.query.executor;
  * #L%
  */
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.spring.modifier.BasePersistenceOperations;
 import org.springframework.jmx.access.InvalidInvocationException;
 
-import javax.persistence.EntityManager;
-import javax.persistence.Tuple;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
