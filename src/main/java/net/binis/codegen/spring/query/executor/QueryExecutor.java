@@ -47,6 +47,7 @@ import java.util.function.*;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
+import static net.binis.codegen.tools.Reflection.isGetter;
 
 @SuppressWarnings("unchecked")
 @Slf4j
@@ -948,7 +949,19 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             if (!update) {
                 query.append("from ");
             }
-            query.append(returnClass.getName()).append(' ').append(alias).append(' ');
+
+            //query.append(returnClass.getName()).append(' ').append(alias).append(' ');
+            //TODO: Remove this when hibernate bugs are fixed
+            var cls = CodeFactory.lookup(returnClass);
+
+            if (nonNull(cls)) {
+                query.append(cls.getName());
+            } else {
+                query.append(returnClass.getName());
+            }
+
+            query.append(' ').append(alias).append(' ');
+            //
         }
 
         if (update) {
@@ -1825,12 +1838,6 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
 
         return list;
-    }
-
-    private boolean isGetter(Method method) {
-        var name = method.getName();
-        return (name.startsWith("get") && name.length() > 3) ||
-                (name.startsWith("is") && name.length() > 2);
     }
 
     private void mapProperties(Class<?> cls, List<String> list) {
