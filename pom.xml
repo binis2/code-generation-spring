@@ -69,12 +69,12 @@
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-context</artifactId>
-			<version>6.0.3</version>
+			<version>6.0.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-orm</artifactId>
-			<version>6.0.3</version>
+			<version>6.0.4</version>
 		</dependency>
 		<dependency>
 			<groupId>jakarta.persistence</groupId>
@@ -84,7 +84,7 @@
 		<dependency>
 			<groupId>org.springframework.data</groupId>
 			<artifactId>spring-data-commons</artifactId>
-			<version>3.0.0</version>
+			<version>3.0.1</version>
 		</dependency>
 	</dependencies>
 
