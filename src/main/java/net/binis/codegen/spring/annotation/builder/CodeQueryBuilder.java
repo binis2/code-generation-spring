@@ -21,6 +21,7 @@ package net.binis.codegen.spring.annotation.builder;
  */
 
 import net.binis.codegen.annotation.CodeAnnotation;
+import net.binis.codegen.annotation.CodePrototypeTemplate;
 import net.binis.codegen.enrich.*;
 import net.binis.codegen.options.CodeOption;
 import net.binis.codegen.spring.modifier.BaseEntityModifier;
@@ -29,6 +30,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 @CodeAnnotation
+@CodePrototypeTemplate
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CodeQueryBuilder {
 
