@@ -53,70 +53,70 @@ import static net.binis.codegen.tools.Reflection.isGetter;
 @Slf4j
 public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistenceOperations<T, R> implements QueryAccessor, QueryIdentifier<T, QuerySelectOperation<S, O, R>, R>, QuerySelectOperation<S, O, R>, QueryOrderOperation<O, R>, QueryFilter<R>, QueryFunctions<T, QuerySelectOperation<S, O, R>>, QueryJoinCollectionFunctions<T, QuerySelectOperation<S, O, R>, Object>, QueryParam<R>, QueryStarter<R, S, A, F, U>, QueryCondition<S, O, R>, QueryJoinAggregateOperation, PreparedQuery<R>, MockedQuery, QuerySelf, QueryEmbed, UpdatableQuery {
 
-    private static final String DEFAULT_ALIAS = "u";
-    private static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
+    protected static final String DEFAULT_ALIAS = "u";
+    protected static final Map<Class<?>, Map<Class<?>, List<String>>> projections = new ConcurrentHashMap<>();
     public static final String CODE_EXECUTOR = "net.binis.codegen.async.executor.CodeExecutor";
     protected QueryExecutor parent;
     protected Object wrapper;
 
     protected int fieldsCount = 0;
-    private List<Object> params = new ArrayList<>();
-    private QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
-    private Supplier<QueryEmbed> queryName;
-    private final UnaryOperator<QueryExecutor> fieldsExecutor;
-    private Class<?> returnClass;
-    private Class<?> aggregateClass;
-    private Class<?> mapClass;
-    private Class<?> existsClass;
-    private Pageable pageable;
-    private boolean isNative;
-    private boolean isCustom;
-    private boolean isModifying;
-    private boolean prepared;
-    private O order;
-    private A aggregate;
-    private String enveloped = null;
-    private Runnable onEnvelop = null;
-    private boolean brackets;
-    private boolean condition;
-    private int lastIdStartPos;
-    private boolean skipNext;
+    protected List<Object> params = new ArrayList<>();
+    protected QueryProcessor.ResultType resultType = QueryProcessor.ResultType.UNKNOWN;
+    protected Supplier<QueryEmbed> queryName;
+    protected final UnaryOperator<QueryExecutor> fieldsExecutor;
+    protected Class<?> returnClass;
+    protected Class<?> aggregateClass;
+    protected Class<?> mapClass;
+    protected Class<?> existsClass;
+    protected Pageable pageable;
+    protected boolean isNative;
+    protected boolean isCustom;
+    protected boolean isModifying;
+    protected boolean prepared;
+    protected O order;
+    protected A aggregate;
+    protected String enveloped = null;
+    protected Runnable onEnvelop = null;
+    protected boolean brackets;
+    protected boolean condition;
+    protected int lastIdStartPos;
+    protected boolean skipNext;
     protected boolean fields;
     protected boolean update;
-    private boolean distinct;
-    private boolean isGroup;
-    private boolean selectOrAggregate;
-    private boolean projection;
+    protected boolean distinct;
+    protected boolean isGroup;
+    protected boolean selectOrAggregate;
+    protected boolean projection;
 
-    private Function<Object, Object> mocked;
+    protected Function<Object, Object> mocked;
 
-    private final StringBuilder query = new StringBuilder();
-    private StringBuilder countQuery;
-    private StringBuilder existsQuery;
+    protected final StringBuilder query = new StringBuilder();
+    protected StringBuilder countQuery;
+    protected StringBuilder existsQuery;
     protected String alias = DEFAULT_ALIAS;
-    private StringBuilder select;
-    private StringBuilder where;
-    private StringBuilder orderPart;
-    private StringBuilder group;
-    private StringBuilder join;
-    private StringBuilder current;
-    private int joins;
+    protected StringBuilder select;
+    protected StringBuilder where;
+    protected StringBuilder orderPart;
+    protected StringBuilder group;
+    protected StringBuilder join;
+    protected StringBuilder current;
+    protected int joins;
 
-    private IntSupplier joinSupplier = () -> joins++;
+    protected IntSupplier joinSupplier = () -> joins++;
 
     protected boolean joinFetch;
     protected Class joinClass;
     protected String joinField;
     protected StringBuilder lastIdentifier;
 
-    private FlushModeType flushMode;
-    private LockModeType lockMode;
-    private Map<String, Object> hints;
-    private List<Filter> filters;
-    private Filter filter;
-    private int bracketCount;
+    protected FlushModeType flushMode;
+    protected LockModeType lockMode;
+    protected Map<String, Object> hints;
+    protected List<Filter> filters;
+    protected Filter filter;
+    protected int bracketCount;
 
-    private boolean pagedLoop;
+    protected boolean pagedLoop;
 
     protected QueryExecutor(Class<?> returnClass, Supplier<QueryEmbed> queryName, UnaryOperator<QueryExecutor> fieldsExecutor) {
         super(null);
@@ -297,22 +297,22 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         envelop("replace", what, withWhat);
     }
 
-    private void backInsert(String func) {
+    protected void backInsert(String func) {
         var idx = $current().lastIndexOf("(");
         $current().insert(idx + 1, func);
     }
 
-    private void backEnvelop(String func) {
+    protected void backEnvelop(String func) {
         backInsert(func + "(");
         $current().append(")");
     }
 
-    private void envelop(String func) {
+    protected void envelop(String func) {
         enveloped = ")";
         $current().append(" (").append(func).append("(");
     }
 
-    private void envelop(String func, Object... params) {
+    protected void envelop(String func, Object... params) {
         if (params.length == 0) {
             envelop(func);
         } else {
@@ -327,7 +327,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    private void envelop(String func, Runnable onEnvelop, Object... params) {
+    protected void envelop(String func, Runnable onEnvelop, Object... params) {
         this.onEnvelop = onEnvelop;
         envelop(func, params);
     }
@@ -925,7 +925,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 QueryProcessor.process(this, manager, actualQuery.toString(), params, resultType, r, mapClass, isNative, isModifying, pageable, flushMode, lockMode, hints, filters));
     }
 
-    private void buildQuery(StringBuilder query, boolean countQuery) {
+    protected void buildQuery(StringBuilder query, boolean countQuery) {
         if (bracketCount != 0) {
             throw new QueryBuilderException("Missing closing bracket!");
         }
@@ -1057,11 +1057,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return (List) execute();
     }
 
-    private void stripLast(String what) {
+    protected void stripLast(String what) {
         stripLast($current(), what);
     }
 
-    private void stripLast(StringBuilder builder, String what) {
+    protected void stripLast(StringBuilder builder, String what) {
         var qlen = builder.length();
         var wlen = what.length();
         var idx = builder.lastIndexOf(what);
@@ -1070,21 +1070,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    private void stripToLast(StringBuilder builder, String what) {
+    protected void stripToLast(StringBuilder builder, String what) {
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
             builder.setLength(idx + what.length());
         }
     }
 
-    private void stripToLastInclude(StringBuilder builder, String what) {
+    protected void stripToLastInclude(StringBuilder builder, String what) {
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
             builder.setLength(idx);
         }
     }
 
-    private void stripLastOperator() {
+    protected void stripLastOperator() {
         where.setLength(lastIdStartPos);
         stripLast(" ");
         stripLast(" not");
@@ -1144,7 +1144,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
-    private void subQueryOperation(String op, Queryable query) {
+    protected void subQueryOperation(String op, Queryable query) {
         stripLast(".");
         if (nonNull(enveloped)) {
             if (nonNull(onEnvelop)) {
@@ -1430,7 +1430,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
-    private void handleContainsCollection(Collection<T> list, String member, String oper) {
+    protected void handleContainsCollection(Collection<T> list, String member, String oper) {
         var idx = $current().lastIndexOf("(");
         var col = $current().substring(idx + 1);
         $current().setLength(idx + 1);
@@ -1518,7 +1518,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     @SuppressWarnings("unchecked")
-    private void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
+    protected void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
         stripToLastInclude(where, " (");
         if (nonNull(joinQuery)) {
             var query = (QueryOrderer) CodeFactory.create(joinClass);
@@ -1609,7 +1609,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return internalFetch("left join fetch");
     }
 
-    private QuerySelectOperation<S, O, R> internalFetch(String clause) {
+    protected QuerySelectOperation<S, O, R> internalFetch(String clause) {
         joinField = lastIdentifier.toString();
         joinFetch = true;
         handleJoin(null, clause);
@@ -1623,7 +1623,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
-    private StringBuilder buildAggregatedOrder(StringBuilder order, StringBuilder select) {
+    protected StringBuilder buildAggregatedOrder(StringBuilder order, StringBuilder select) {
         StringBuilder result = new StringBuilder();
         var o = order.toString().strip().split(", ");
         var s = select.toString().split(",");
@@ -1840,7 +1840,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return list;
     }
 
-    private void mapProperties(Class<?> cls, List<String> list) {
+    protected void mapProperties(Class<?> cls, List<String> list) {
         for (var inh : cls.getInterfaces()) {
             mapProperties(inh, list);
         }
@@ -1853,7 +1853,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    private String getFieldName(Class<?> cls, String methodName, String prefix) {
+    protected String getFieldName(Class<?> cls, String methodName, String prefix) {
         if (!methodName.contains(" as ")) {
             var methods = getMethods(cls);
             var method = methods.get(methodName);
@@ -1874,13 +1874,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return null;
     }
 
-    private Map<String, Method> getMethods(Class<?> cls) {
+    protected Map<String, Method> getMethods(Class<?> cls) {
         var result = new HashMap<String, Method>();
         getMethods(cls, result);
         return result;
     }
 
-    private void getMethods(Class<?> cls, Map<String, Method> map) {
+    protected void getMethods(Class<?> cls, Map<String, Method> map) {
         for (var intf : cls.getInterfaces()) {
             getMethods(intf, map);
         }
@@ -1910,14 +1910,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         existsClass = entry.getType();
     }
 
-    private StringBuilder $current() {
+    protected StringBuilder $current() {
         if (nonNull(parent)) {
             return $parent().current;
         }
         return current;
     }
 
-    private StringBuilder $orderPart() {
+    protected StringBuilder $orderPart() {
         if (nonNull(parent)) {
             return $parent().orderPart;
         }
@@ -1925,56 +1925,56 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
 
-    private StringBuilder $select() {
+    protected StringBuilder $select() {
         if (nonNull(parent)) {
             return $parent().select;
         }
         return select;
     }
 
-    private StringBuilder $where() {
+    protected StringBuilder $where() {
         if (nonNull(parent)) {
             return $parent().where;
         }
         return where;
     }
 
-    private O $order() {
+    protected O $order() {
         if (nonNull(parent)) {
             return (O) $parent().order;
         }
         return order;
     }
 
-    private boolean $fields() {
+    protected boolean $fields() {
         if (nonNull(parent)) {
             return $parent().fields;
         }
         return fields;
     }
 
-    private String $alias() {
+    protected String $alias() {
         if (nonNull(parent)) {
             return $parent().alias;
         }
         return alias;
     }
 
-    private A $aggregate() {
+    protected A $aggregate() {
         if (nonNull(parent)) {
             return (A) $parent().aggregate;
         }
         return aggregate;
     }
 
-    private boolean $distinct() {
+    protected boolean $distinct() {
         if (nonNull(parent)) {
             return $parent().distinct;
         }
         return distinct;
     }
 
-    private void $fieldsInc() {
+    protected void $fieldsInc() {
         if (nonNull(parent)) {
             $parent().fieldsCount++;
         } else {
@@ -1982,7 +1982,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    private QueryExecutor $parent() {
+    protected QueryExecutor $parent() {
         var p = parent;
 
         while (nonNull(p.parent)) {
@@ -1992,7 +1992,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return p;
     }
 
-    private QueryIdentifier $retParent() {
+    protected QueryIdentifier $retParent() {
 
         if (Objects.isNull(parent)) {
             return this;
@@ -2027,7 +2027,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    private Page checkPage(Page org) {
+    protected Page checkPage(Page org) {
         if (pagedLoop) {
             return org;
         }

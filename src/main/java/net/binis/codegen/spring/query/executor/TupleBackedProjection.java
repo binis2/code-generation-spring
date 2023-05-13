@@ -38,11 +38,11 @@ import static java.util.Objects.nonNull;
 
 public class TupleBackedProjection implements InvocationHandler {
 
-    private final Tuple tuple;
-    private final QueryExecutor executor;
-    private static Method withRes;
+    protected final Tuple tuple;
+    protected final QueryExecutor executor;
+    protected static final Method withRes;
 
-    {
+    static {
         try {
             withRes = BasePersistenceOperations.class.getDeclaredMethod("withRes", Function.class);
             withRes.setAccessible(true);
@@ -115,7 +115,7 @@ public class TupleBackedProjection implements InvocationHandler {
         throw new InvalidInvocationException("Can't invoke method: " + method.getName());
     }
 
-    private Object processSubEntity(Object id, Class<?> returnType) {
+    protected Object processSubEntity(Object id, Class<?> returnType) {
         if (nonNull(id)) {
             var obj = CodeFactory.lookup(returnType);
             if (nonNull(obj)) {
@@ -133,45 +133,45 @@ public class TupleBackedProjection implements InvocationHandler {
         }
     }
 
-    private Object convert(Object val, Class cls) {
+    protected Object convert(Object val, Class cls) {
         if (nonNull(val)) {
-            if (val instanceof BigInteger) {
+            if (val instanceof BigInteger v) {
                 if (int.class.equals(cls) || Integer.class.equals(cls)) {
-                    return ((BigInteger) val).intValue();
+                    return v.intValue();
                 }
                 if (long.class.equals(cls) || Long.class.equals(cls)) {
-                    return ((BigInteger) val).longValue();
+                    return v.longValue();
                 }
             }
 
-            if (val instanceof BigDecimal) {
+            if (val instanceof BigDecimal v) {
                 if (double.class.equals(cls) || Double.class.equals(cls)) {
-                    return ((BigDecimal) val).doubleValue();
+                    return v.doubleValue();
                 }
                 if (float.class.equals(cls) || Float.class.equals(cls)) {
-                    return ((BigDecimal) val).floatValue();
+                    return v.floatValue();
                 }
             }
 
-            if (val instanceof Timestamp) {
+            if (val instanceof Timestamp v) {
                 if (LocalDateTime.class.equals(cls)) {
-                    return ((Timestamp) val).toLocalDateTime();
+                    return v.toLocalDateTime();
                 }
                 if (LocalDate.class.equals(cls)) {
-                    return ((Timestamp) val).toLocalDateTime().toLocalDate();
+                    return v.toLocalDateTime().toLocalDate();
                 }
                 if (LocalTime.class.equals(cls)) {
-                    return ((Timestamp) val).toLocalDateTime().toLocalTime();
+                    return v.toLocalDateTime().toLocalTime();
                 }
                 if (OffsetDateTime.class.equals(cls)) {
-                    return ((Timestamp) val).toLocalDateTime().atOffset(ZoneOffset.UTC);
+                    return v.toLocalDateTime().atOffset(ZoneOffset.UTC);
                 }
             }
         }
         return val;
     }
 
-    private String tupleToString() {
+    protected String tupleToString() {
         var result = new StringBuilder("(");
         var elements = tuple.getElements();
         for (var i = 0; i < tuple.getElements().size(); i++) {
