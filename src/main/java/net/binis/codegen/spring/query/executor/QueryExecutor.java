@@ -126,16 +126,16 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         mapClass = returnClass;
     }
 
-    public QueryExecutor<T, S, O, R, A, F, U> identifier(String id, Object value) {
+    public QueryExecutor<T, S, O, R, A, F, U> $identifier(String id, Object value) {
         if (update && Objects.isNull(where)) {
-            return identifierUpdate(id, value);
+            return _identifierUpdate(id, value);
         }
 
         if (Objects.isNull(where)) {
             whereStart();
         }
 
-        var idStart = where.length() == 0 || where.charAt(where.length() - 1) != '.';
+        var idStart = where.isEmpty() || where.charAt(where.length() - 1) != '.';
 
         if (idStart) {
             lastIdStartPos = where.length();
@@ -171,7 +171,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
-    public QueryExecutor<T, S, O, R, A, F, U> identifierUpdate(String id, Object value) {
+    public QueryExecutor<T, S, O, R, A, F, U> _identifierUpdate(String id, Object value) {
         if (Objects.isNull(select)) {
             select = new StringBuilder();
         }
@@ -187,7 +187,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
 
-    public QueryIdentifier identifier(String id) {
+    public QueryIdentifier $identifier(String id) {
         var _par = nonNull(parent) ? $parent() : this;
         if (_par.fields) {
             var _sel = _par.select;
@@ -214,14 +214,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             _sel.append(",");
             _par.fieldsCount++;
         } else if (_par.current == _par.orderPart) {
-            orderIdentifier(id);
+            _orderIdentifier(id);
         } else {
             var _where = _par.where;
             if (Objects.isNull(_where)) {
                 _where = whereStart();
             }
 
-            var idStart = _where.length() == 0 || _where.charAt(_where.length() - 1) != '.';
+            var idStart = _where.isEmpty() || _where.charAt(_where.length() - 1) != '.';
 
             if (idStart) {
                 lastIdStartPos = _where.length();
@@ -249,7 +249,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     public void embedded(String id) {
         var _current = $current();
 
-        if (_current.length() > 0 && _current.charAt(_current.length() - 1) == '.') {
+        if (!_current.isEmpty() && _current.charAt(_current.length() - 1) == '.') {
             _current.append(id).append(".");
             if (nonNull(lastIdentifier)) {
                 lastIdentifier.append(".").append(id);
@@ -269,52 +269,52 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    protected void doNot() {
+    protected void _doNot() {
         $current().append(" not ");
     }
 
-    protected void doLower() {
-        envelop("lower");
+    protected void _doLower() {
+        _envelop("lower");
     }
 
-    protected void doUpper() {
-        envelop("upper");
+    protected void _doUpper() {
+        _envelop("upper");
     }
 
-    protected void doTrim() {
-        envelop("trim");
+    protected void _doTrim() {
+        _envelop("trim");
     }
 
-    protected void doSubstring(int start) {
-        envelop("substr", start);
+    protected void _doSubstring(int start) {
+        _envelop("substr", start);
     }
 
-    public void doSubstring(int start, int len) {
-        envelop("substr", start, len);
+    protected void _doSubstring(int start, int len) {
+        _envelop("substr", start, len);
     }
 
-    protected void doReplace(String what, String withWhat) {
-        envelop("replace", what, withWhat);
+    protected void _doReplace(String what, String withWhat) {
+        _envelop("replace", what, withWhat);
     }
 
-    protected void backInsert(String func) {
+    protected void _backInsert(String func) {
         var idx = $current().lastIndexOf("(");
         $current().insert(idx + 1, func);
     }
 
-    protected void backEnvelop(String func) {
-        backInsert(func + "(");
+    protected void _backEnvelop(String func) {
+        _backInsert(func + "(");
         $current().append(")");
     }
 
-    protected void envelop(String func) {
+    protected void _envelop(String func) {
         enveloped = ")";
         $current().append(" (").append(func).append("(");
     }
 
-    protected void envelop(String func, Object... params) {
+    protected void _envelop(String func, Object... params) {
         if (params.length == 0) {
-            envelop(func);
+            _envelop(func);
         } else {
             var s = new StringBuilder();
             for (Object param : params) {
@@ -327,12 +327,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    protected void envelop(String func, Runnable onEnvelop, Object... params) {
+    protected void _envelop(String func, Runnable onEnvelop, Object... params) {
         this.onEnvelop = onEnvelop;
-        envelop(func, params);
+        _envelop(func, params);
     }
 
-    public void operation(String op, Object value) {
+    protected void _operation(String op, Object value) {
         if (nonNull(mocked)) {
             value = mocked.apply(value);
         }
@@ -351,13 +351,13 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         brackets = false;
     }
 
-    protected QueryExecutor<T, S, O, R, A, F, U> orderIdentifier(String id) {
+    protected QueryExecutor<T, S, O, R, A, F, U> _orderIdentifier(String id) {
         var _order = $orderPart();
         if (Objects.isNull(_order)) {
-            _order = orderStart();
+            _order = _orderStart();
         }
 
-        if (_order.length() == 0 || _order.charAt(_order.length() - 1) != '.') {
+        if (_order.isEmpty() || _order.charAt(_order.length() - 1) != '.') {
             _order.append(' ').append(alias).append(".");
         }
 
@@ -365,7 +365,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
-    protected Object aggregateIdentifier(String id) {
+    protected Object _aggregateIdentifier(String id) {
         if (fieldsCount == 0) {
             resultType = QueryProcessor.ResultType.SINGLE;
         } else {
@@ -386,7 +386,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return aggregate;
     }
 
-    protected O orderStart(O order) {
+    protected O _orderStart(O order) {
         this.order = order;
         if (Objects.isNull(orderPart)) {
             orderPart = new StringBuilder();
@@ -395,7 +395,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return order;
     }
 
-    protected A aggregateStart(A aggregate) {
+    protected A _aggregateStart(A aggregate) {
         this.aggregate = aggregate;
         select = new StringBuilder();
         current = select;
@@ -405,8 +405,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public QuerySelectOperation<S, O, R> script(String script) {
-        stripLast(" ");
-        stripLast(".");
+        _stripLast(" ");
+        _stripLast(".");
         $current().append(' ').append(script);
 
         if (brackets) {
@@ -656,7 +656,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     public Page<R> page(Pageable pageable) {
         resultType = QueryProcessor.ResultType.PAGE;
         this.pageable = pageable;
-        return checkPage((Page) execute());
+        return _checkPage((Page) execute());
     }
 
     @SuppressWarnings("unchecked")
@@ -881,8 +881,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public O desc() {
         var _orderPart = $orderPart();
-        stripLast(_orderPart, ".");
-        stripLast(_orderPart, ",");
+        _stripLast(_orderPart, ".");
+        _stripLast(_orderPart, ",");
         _orderPart.append(" desc,");
         return $order();
     }
@@ -890,8 +890,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public O asc() {
         var _orderPart = $orderPart();
-        stripLast(_orderPart, ".");
-        stripLast(_orderPart, ",");
+        _stripLast(_orderPart, ".");
+        _stripLast(_orderPart, ",");
         _orderPart.append(" asc,");
         return $order();
     }
@@ -931,7 +931,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
 
         if (nonNull(select)) {
-            stripLast(select, ",");
+            _stripLast(select, ",");
             if (update) {
                 query.append("update ");
             } else {
@@ -968,22 +968,22 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             query.append("set ").append(select).append(' ');
         }
 
-        if (nonNull(join) && join.length() > 0) {
+        if (nonNull(join) && !join.isEmpty()) {
             query.append(join);
         }
 
         if (nonNull(where) && where.length() > 1) {
-            stripLast(where, ",");
+            _stripLast(where, ",");
             query.append("where").append(where);
         }
 
         if (nonNull(group)) {
-            stripLast(group, ",");
+            _stripLast(group, ",");
             query.append(" group by ").append(group).append(' ');
         }
 
         if (nonNull(orderPart) && !countQuery) {
-            stripLast(orderPart, ",");
+            _stripLast(orderPart, ",");
             query.append(" order by ").append(orderPart);
         }
     }
@@ -1057,11 +1057,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return (List) execute();
     }
 
-    protected void stripLast(String what) {
-        stripLast($current(), what);
+    protected void _stripLast(String what) {
+        _stripLast($current(), what);
     }
 
-    protected void stripLast(StringBuilder builder, String what) {
+    protected void _stripLast(StringBuilder builder, String what) {
         var qlen = builder.length();
         var wlen = what.length();
         var idx = builder.lastIndexOf(what);
@@ -1070,66 +1070,66 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    protected void stripToLast(StringBuilder builder, String what) {
+    protected void _stripToLast(StringBuilder builder, String what) {
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
             builder.setLength(idx + what.length());
         }
     }
 
-    protected void stripToLastInclude(StringBuilder builder, String what) {
+    protected void _stripToLastInclude(StringBuilder builder, String what) {
         var idx = builder.lastIndexOf(what);
         if (idx > -1) {
             builder.setLength(idx);
         }
     }
 
-    protected void stripLastOperator() {
+    protected void _stripLastOperator() {
         where.setLength(lastIdStartPos);
-        stripLast(" ");
-        stripLast(" not");
-        stripLast(" ");
-        stripToLastInclude(where, " ");
+        _stripLast(" ");
+        _stripLast(" not");
+        _stripLast(" ");
+        _stripToLastInclude(where, " ");
         skipNext = where.length() == 0;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public QueryFunctions<Long, QuerySelectOperation<S, O, R>> length() {
-        backEnvelop("length");
+        _backEnvelop("length");
         return (QueryFunctions) this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> equal(T value) {
-        stripLast(".");
-        operation("=", value);
+        _stripLast(".");
+        _operation("=", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> equal(Queryable query) {
-        subQueryOperation("=", query);
+        _subQueryOperation("=", query);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> between(T from, T to) {
-        stripLast(".");
-        operation("between", from);
-        stripLast(")");
-        operation("and", to);
+        _stripLast(".");
+        _operation("between", from);
+        _stripLast(")");
+        _operation("and", to);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> in(Collection<T> values) {
         if (Objects.isNull(values) || values.isEmpty()) {
-            stripToLast(current, "(");
+            _stripToLast(current, "(");
             $current().append("0 <> 0) ");
         } else {
-            stripLast(".");
-            operation("in", values);
+            _stripLast(".");
+            _operation("in", values);
         }
         return this;
     }
@@ -1140,12 +1140,12 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public QuerySelectOperation<S, O, R> in(Queryable query) {
-        subQueryOperation("in", query);
+        _subQueryOperation("in", query);
         return this;
     }
 
-    protected void subQueryOperation(String op, Queryable query) {
-        stripLast(".");
+    protected void _subQueryOperation(String op, Queryable query) {
+        _stripLast(".");
         if (nonNull(enveloped)) {
             if (nonNull(onEnvelop)) {
                 onEnvelop.run();
@@ -1177,95 +1177,95 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public QuerySelectOperation<S, O, R> isNull() {
-        stripLast(".");
+        _stripLast(".");
         where.append(" is null)");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> isNotNull() {
-        stripLast(".");
+        _stripLast(".");
         where.append(" is not null)");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> like(String value) {
-        stripLast(".");
-        operation("like", value);
+        _stripLast(".");
+        _operation("like", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> starts(String value) {
-        stripLast(".");
-        operation("like", value + "%");
+        _stripLast(".");
+        _operation("like", value + "%");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> ends(String value) {
-        stripLast(".");
-        operation("like", "%" + value);
+        _stripLast(".");
+        _operation("like", "%" + value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> contains(String value) {
-        stripLast(".");
-        operation("like", "%" + value + "%");
+        _stripLast(".");
+        _operation("like", "%" + value + "%");
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> greater(T value) {
-        stripLast(".");
-        operation(">", value);
+        _stripLast(".");
+        _operation(">", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> greater(Queryable query) {
-        subQueryOperation(">", query);
+        _subQueryOperation(">", query);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> greaterEqual(T value) {
-        stripLast(".");
-        operation(">=", value);
+        _stripLast(".");
+        _operation(">=", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> greaterEqual(Queryable query) {
-        subQueryOperation(">=", query);
+        _subQueryOperation(">=", query);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> less(T value) {
-        stripLast(".");
-        operation("<", value);
+        _stripLast(".");
+        _operation("<", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> less(Queryable query) {
-        subQueryOperation("<", query);
+        _subQueryOperation("<", query);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> lessEqual(T value) {
-        stripLast(".");
-        operation("<=", value);
+        _stripLast(".");
+        _operation("<=", value);
         return this;
     }
 
     @Override
     public QuerySelectOperation<S, O, R> lessEqual(Queryable query) {
-        subQueryOperation("<=", query);
+        _subQueryOperation("<=", query);
         return this;
     }
 
@@ -1380,14 +1380,14 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @SuppressWarnings("unchecked")
     @Override
     public QueryFunctions<Integer, QuerySelectOperation<S, O, R>> size() {
-        backEnvelop("size");
+        _backEnvelop("size");
         return (QueryFunctions) this;
     }
 
     public QuerySelectOperation<S, O, R> size(Integer size) {
-        backEnvelop("size");
-        stripLast(".");
-        operation("=", size);
+        _backEnvelop("size");
+        _stripLast(".");
+        _operation("=", size);
         return this;
     }
 
@@ -1399,7 +1399,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public QuerySelectOperation<S, O, R> contains(T value) {
         params.add(value);
-        backInsert("?" + params.size() + " member of ");
+        _backInsert("?" + params.size() + " member of ");
         where.append(")");
         return this;
     }
@@ -1407,7 +1407,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     @Override
     public QuerySelectOperation<S, O, R> notContains(T value) {
         params.add(value);
-        backInsert("?" + params.size() + " not member of ");
+        _backInsert("?" + params.size() + " not member of ");
         where.append(")");
         return this;
     }
@@ -1441,7 +1441,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 params.add(val);
                 $current().append("?").append(params.size()).append(member).append(col).append(oper);
             }
-            stripLast(oper);
+            _stripLast(oper);
         }
         $current().append(")");
     }
@@ -1468,9 +1468,9 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return where;
     }
 
-    public StringBuilder orderStart() {
+    public StringBuilder _orderStart() {
         if (nonNull(parent)) {
-            return $parent().orderStart();
+            return $parent()._orderStart();
         }
         orderPart = new StringBuilder();
         current = orderPart;
@@ -1481,7 +1481,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     public Object joinStart(String id, Class cls) {
         joinClass = cls;
         joinField = id;
-        identifier(id);
+        $identifier(id);
         return this;
     }
 
@@ -1498,11 +1498,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     }
 
     public QuerySelectOperation<S, O, R> join() {
-        return internalFetch("join");
+        return _internalFetch("join");
     }
 
     public QuerySelectOperation<S, O, R> leftJoin() {
-        return internalFetch("left join");
+        return _internalFetch("left join");
     }
 
 
@@ -1519,7 +1519,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @SuppressWarnings("unchecked")
     protected void handleJoin(Function<Object, Queryable> joinQuery, String joinOperation) {
-        stripToLastInclude(where, " (");
+        _stripToLastInclude(where, " (");
         if (nonNull(joinQuery)) {
             var query = (QueryOrderer) CodeFactory.create(joinClass);
             if (nonNull(query)) {
@@ -1528,7 +1528,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 access.setParams(params);
                 var q = (QueryAccessor) joinQuery.apply(query);
 
-                if (nonNull(q.getAccessorSelect()) && q.getAccessorSelect().length() > 0) {
+                if (nonNull(q.getAccessorSelect()) && !q.getAccessorSelect().isEmpty()) {
                     if (Objects.isNull(select)) {
                         select = new StringBuilder();
                         if (DEFAULT_ALIAS.equals(alias)) {
@@ -1547,7 +1547,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                             orderPart = new StringBuilder();
                         }
 
-                        orderPart.append(buildAggregatedOrder(q.getAccessorOrder(), q.getAccessorSelect()));
+                        orderPart.append(_buildAggregatedOrder(q.getAccessorOrder(), q.getAccessorSelect()));
                     }
 
                 } else {
@@ -1561,8 +1561,8 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                         where = new StringBuilder(" ");
                     }
 
-                    if (q.getAccessorWhere().length() == 0) {
-                        stripLastOperator();
+                    if (q.getAccessorWhere().isEmpty()) {
+                        _stripLastOperator();
                     } else {
                         where.append(q.getAccessorWhere()).append(' ');
                     }
@@ -1601,21 +1601,21 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     @Override
     public QuerySelectOperation<S, O, R> joinFetch() {
-        return internalFetch("join fetch");
+        return _internalFetch("join fetch");
     }
 
     @Override
     public QuerySelectOperation<S, O, R> leftJoinFetch() {
-        return internalFetch("left join fetch");
+        return _internalFetch("left join fetch");
     }
 
-    protected QuerySelectOperation<S, O, R> internalFetch(String clause) {
+    protected QuerySelectOperation<S, O, R> _internalFetch(String clause) {
         joinField = lastIdentifier.toString();
         joinFetch = true;
         handleJoin(null, clause);
         if (nonNull(where) && where.length() > 0) {
-            stripLast(where, " ");
-            stripToLast(where, " ");
+            _stripLast(where, " ");
+            _stripToLast(where, " ");
         }
         if (Objects.isNull(where) || where.length() == 0) {
             skipNext = true;
@@ -1623,7 +1623,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return this;
     }
 
-    protected StringBuilder buildAggregatedOrder(StringBuilder order, StringBuilder select) {
+    protected StringBuilder _buildAggregatedOrder(StringBuilder order, StringBuilder select) {
         StringBuilder result = new StringBuilder();
         var o = order.toString().strip().split(", ");
         var s = select.toString().split(",");
@@ -1722,45 +1722,45 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         params = new ObservableList(params, onParamAdd);
     }
 
-    protected Object getQueryName() {
+    protected Object _getQueryName() {
         var result = queryName.get();
         result.setParent(alias, this);
         return result;
     }
 
     public Object lower() {
-        doLower();
-        return getQueryName();
+        _doLower();
+        return _getQueryName();
     }
 
     public Object not() {
-        doNot();
-        return getQueryName();
+        _doNot();
+        return _getQueryName();
     }
 
     public Object replace(String what, String withWhat) {
-        doReplace(what, withWhat);
-        return getQueryName();
+        _doReplace(what, withWhat);
+        return _getQueryName();
     }
 
     public Object substring(int start) {
-        doSubstring(start);
-        return getQueryName();
+        _doSubstring(start);
+        return _getQueryName();
     }
 
     public Object substring(int start, int len) {
-        doSubstring(start, len);
-        return getQueryName();
+        _doSubstring(start, len);
+        return _getQueryName();
     }
 
     public Object trim() {
-        doTrim();
-        return getQueryName();
+        _doTrim();
+        return _getQueryName();
     }
 
     public Object upper() {
-        doUpper();
-        return getQueryName();
+        _doUpper();
+        return _getQueryName();
     }
 
     public Object _self() {
@@ -1770,7 +1770,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
             _current.append(alias);
             lastIdentifier = new StringBuilder("self");
         }
-        stripLast(".");
+        _stripLast(".");
         if (_par.fields) {
             if (Objects.isNull(_par.aggregate)) {
                 _current.append(" as ").append(lastIdentifier);
@@ -1801,7 +1801,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     public void buildProjection(Class<?> projection) {
         var list = projections.computeIfAbsent(returnClass, c -> new HashMap<>())
-                .computeIfAbsent(projection, c -> calcProjection(projection));
+                .computeIfAbsent(projection, c -> _calcProjection(projection));
 
         this.projection = true;
         if (!list.isEmpty()) {
@@ -1813,22 +1813,22 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    protected List<String> calcProjection(Class<?> projection) {
+    protected List<String> _calcProjection(Class<?> projection) {
         if (!projection.isInterface()) {
             throw new QueryBuilderException("Projection must be interface!");
         }
 
-        var list = calcProjection(projection, new ArrayList<>());
+        var list = _calcProjection(projection, new ArrayList<>());
         list.sort(Comparator.naturalOrder());
 
-        mapProperties(returnClass, list);
+        _mapProperties(returnClass, list);
 
         return list.stream().filter(s -> s.contains(" as ")).collect(Collectors.toList());
     }
 
-    protected List<String> calcProjection(Class<?> projection, List<String> list) {
+    protected List<String> _calcProjection(Class<?> projection, List<String> list) {
         for (var inh : projection.getInterfaces()) {
-            calcProjection(inh, list);
+            _calcProjection(inh, list);
         }
 
         for (var method : projection.getDeclaredMethods()) {
@@ -1840,22 +1840,22 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         return list;
     }
 
-    protected void mapProperties(Class<?> cls, List<String> list) {
+    protected void _mapProperties(Class<?> cls, List<String> list) {
         for (var inh : cls.getInterfaces()) {
-            mapProperties(inh, list);
+            _mapProperties(inh, list);
         }
 
         for (var i = 0; i < list.size(); i++) {
-            var field = getFieldName(cls, list.get(i), "");
+            var field = _getFieldName(cls, list.get(i), "");
             if (nonNull(field)) {
                 list.set(i, field + " as " + TupleBackedProjection.getFieldName(list.get(i)));
             }
         }
     }
 
-    protected String getFieldName(Class<?> cls, String methodName, String prefix) {
+    protected String _getFieldName(Class<?> cls, String methodName, String prefix) {
         if (!methodName.contains(" as ")) {
-            var methods = getMethods(cls);
+            var methods = _getMethods(cls);
             var method = methods.get(methodName);
             if (nonNull(method)) {
                 return prefix + TupleBackedProjection.getFieldName(methodName);
@@ -1867,22 +1867,22 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                     var name = methodName.charAt(0) == 'i' ?
                             "is" + methodName.substring(method.getName().length()) :
                             "get" + methodName.substring(method.getName().length());
-                    return getFieldName(method.getReturnType(), name, prefix + TupleBackedProjection.getNativeFieldName(method.getName()) + ".");
+                    return _getFieldName(method.getReturnType(), name, prefix + TupleBackedProjection.getNativeFieldName(method.getName()) + ".");
                 }
             }
         }
         return null;
     }
 
-    protected Map<String, Method> getMethods(Class<?> cls) {
+    protected Map<String, Method> _getMethods(Class<?> cls) {
         var result = new HashMap<String, Method>();
-        getMethods(cls, result);
+        _getMethods(cls, result);
         return result;
     }
 
-    protected void getMethods(Class<?> cls, Map<String, Method> map) {
+    protected void _getMethods(Class<?> cls, Map<String, Method> map) {
         for (var intf : cls.getInterfaces()) {
-            getMethods(intf, map);
+            _getMethods(intf, map);
         }
 
         for (var method : cls.getDeclaredMethods()) {
@@ -2018,7 +2018,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
     public void setParent(String name, Object executor) {
         this.parent = (QueryExecutor) executor;
         var _current = $current();
-        if (_current.length() == 0 || _current.charAt(_current.length() - 1) != '.') {
+        if (_current.isEmpty() || _current.charAt(_current.length() - 1) != '.') {
             _current.append($alias()).append('.');
         }
         _current.append(name).append(".");
@@ -2027,7 +2027,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         }
     }
 
-    protected Page checkPage(Page org) {
+    protected Page _checkPage(Page org) {
         if (pagedLoop) {
             return org;
         }
@@ -2037,7 +2037,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
 
     public void _alias(String alias) {
         var _sel = $select();
-        stripLast(_sel, ",");
+        _stripLast(_sel, ",");
         _sel.append(" as ").append(alias).append(",");
     }
 }
