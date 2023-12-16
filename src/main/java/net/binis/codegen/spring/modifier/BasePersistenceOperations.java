@@ -22,10 +22,13 @@ package net.binis.codegen.spring.modifier;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
+import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.modifier.impl.BaseModifierImpl;
 import net.binis.codegen.spring.component.ApplicationContextProvider;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.orm.jpa.EntityManagerFactoryUtils;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -43,33 +46,44 @@ public abstract class BasePersistenceOperations<T, R> extends BaseModifierImpl<T
 
     public static final String NO_TRANSACTION_DEBUG_WARNING = "Attempt to do action outside of open transaction!";
 
-    private static EntityManagerFactory factory;
-    private static TransactionTemplate template;
+    protected static EntityManagerFactory factory;
+    protected static TransactionTemplate template;
 
-    private static Function<EntityManagerFactory, EntityManager> entityManagerProvider = defaultEntityManagerProvider();
+    @Setter
+    protected static Function<EntityManagerFactory, EntityManager> entityManagerProvider = defaultEntityManagerProvider();
 
     protected BasePersistenceOperations(R parent) {
         super(parent);
-    }
-
-    public static void setEntityManagerProvider(Function<EntityManagerFactory, EntityManager> provider) {
-        entityManagerProvider = provider;
     }
 
     public static EntityManager getEntityManager() {
         return entityManagerProvider.apply(factory);
     }
 
-
-    private static void init() {
+    protected static void init() {
         if (isNull(factory)) {
             var context = ApplicationContextProvider.getApplicationContext();
             if (isNull(context)) {
                 throw new GenericCodeGenException("Not in spring context!\nUse '@ExtendWith(CodeGenExtension.class)' if you are in running unit test!");
             }
-            JpaTransactionManager tm = context.getBean(JpaTransactionManager.class);
+            JpaTransactionManager tm;
+            try {
+                tm = context.getBean(JpaTransactionManager.class);
+            } catch (NoSuchBeanDefinitionException e) {
+                tm = CodeFactory.create(JpaTransactionManager.class);
+                if (isNull(tm)) {
+                    throw new GenericCodeGenException("No JpaTransactionManager found!");
+                }
+            }
             factory = tm.getEntityManagerFactory();
-            template = context.getBean(TransactionTemplate.class);
+            try {
+                template = context.getBean(TransactionTemplate.class);
+            } catch (NoSuchBeanDefinitionException e) {
+                template = CodeFactory.create(TransactionTemplate.class);
+                if (isNull(template)) {
+                    throw new GenericCodeGenException("No TransactionTemplate found!");
+                }
+            }
         }
     }
 
