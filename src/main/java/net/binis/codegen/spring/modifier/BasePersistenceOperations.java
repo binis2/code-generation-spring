@@ -69,13 +69,17 @@ public abstract class BasePersistenceOperations<T, R> extends BaseModifierImpl<T
             JpaTransactionManager tm;
             try {
                 tm = context.getBean(JpaTransactionManager.class);
+                factory = tm.getEntityManagerFactory();
             } catch (NoSuchBeanDefinitionException e) {
-                tm = CodeFactory.create(JpaTransactionManager.class);
-                if (isNull(tm)) {
-                    throw new GenericCodeGenException("No JpaTransactionManager found!");
+                try {
+                    factory = context.getBean(EntityManagerFactory.class);
+                } catch (NoSuchBeanDefinitionException ex) {
+                    tm = CodeFactory.create(JpaTransactionManager.class);
+                    if (isNull(tm)) {
+                        throw new GenericCodeGenException("No JpaTransactionManager found!");
+                    }
                 }
             }
-            factory = tm.getEntityManagerFactory();
             try {
                 template = context.getBean(TransactionTemplate.class);
             } catch (NoSuchBeanDefinitionException e) {
