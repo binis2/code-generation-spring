@@ -48,6 +48,11 @@ public abstract class AsyncEntityModifierImpl<T, R> extends BaseEntityModifierIm
     protected class AsyncImpl extends BaseAsyncExecutorImpl<AsyncModifier<T, R>, R> implements AsyncModifier<T, R> {
 
         @Override
+        public AsyncModifier<T, R> virtual() {
+            return flow(CodeExecutor.VIRTUAL);
+        }
+
+        @Override
         public CompletableFuture<R> save() {
             return internalExecute(AsyncEntityModifierImpl.this::save);
         }

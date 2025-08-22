@@ -30,6 +30,7 @@ public interface AsyncModifier<T, R> {
     AsyncModifier<T, R> flow(String flow);
     AsyncModifier<T, R> delay(long delay, TimeUnit unit);
     AsyncModifier<T, R> delay(Duration duration);
+    AsyncModifier<T, R> virtual();
     CompletableFuture<R> save();
     CompletableFuture<R> delete();
     CompletableFuture<R> execute(Consumer<T> task);
