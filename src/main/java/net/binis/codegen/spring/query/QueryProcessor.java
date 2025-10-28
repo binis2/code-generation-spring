@@ -24,6 +24,7 @@ import jakarta.persistence.*;
 import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
+import net.binis.codegen.map.Mapper;
 import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import net.binis.codegen.spring.query.executor.Filter;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
@@ -126,7 +127,7 @@ public class QueryProcessor {
                 returnClass = mapClass;
             }
 
-            var map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || void.class.equals(mapClass) || Void.class.equals(mapClass) ? Tuple.class : returnClass;
+            var map = ResultType.TUPLE.equals(resultType) || ResultType.TUPLES.equals(resultType) || ResultType.REFERENCE.equals(resultType) || ResultType.REFERENCES.equals(resultType) || void.class.equals(mapClass) || Void.class.equals(mapClass) ? Tuple.class : returnClass;
 
             Query q;
             if (ResultType.REMOVE.equals(resultType) || ResultType.EXECUTE.equals(resultType)) {
@@ -154,8 +155,7 @@ public class QueryProcessor {
 
             if (ResultType.EXISTS.equals(resultType)) {
                 q.setMaxResults(1);
-            } else
-            if (nonNull(pageable) && !ResultType.COUNT.equals(resultType)) {
+            } else if (nonNull(pageable) && !ResultType.COUNT.equals(resultType)) {
                 q.setFirstResult((int) pageable.getOffset());
                 if (pageable.getPageSize() > -1) {
                     q.setMaxResults(pageable.getPageSize());
@@ -249,15 +249,24 @@ public class QueryProcessor {
                     return q.executeUpdate();
                 case TUPLE:
                     try {
-                        var result = q.getSingleResult();
+                        var result = (Tuple) q.getSingleResult();
 
                         if (isNull(result)) {
                             return Optional.empty();
                         }
 
                         if (!Tuple.class.equals(mapClass) && mapClass.isInterface()) {
-                            return Optional.of(createProxy((Tuple) result, mapClass, executor));
+                            return Optional.of(createProxy(result, mapClass, executor));
                         } else {
+                            if (!Tuple.class.equals(mapClass)) {
+                                var elements = result.getElements();
+
+                                if (elements.size() == 1 && mapClass.isAssignableFrom(elements.get(0).getJavaType())) {
+                                    return Optional.ofNullable(result.get(0));
+                                } else {
+                                    return Optional.ofNullable(Mapper.convert(result.get(0), mapClass));
+                                }
+                            }
                             return Optional.of(result);
                         }
                     } catch (NoResultException ex) {
@@ -267,7 +276,19 @@ public class QueryProcessor {
                     if (!Tuple.class.equals(mapClass) && mapClass.isInterface()) {
                         return q.getResultList().stream().map(r -> createProxy((Tuple) r, mapClass, executor)).collect(Collectors.toList());
                     } else {
-                        return q.getResultList();
+                        var result = (List<Tuple>) q.getResultList();
+                        if (!result.isEmpty()) {
+                            if (!Tuple.class.equals(mapClass)) {
+                                var elements = result.get(0).getElements();
+
+                                if (elements.size() == 1 && mapClass.isAssignableFrom(elements.get(0).getJavaType())) {
+                                    return result.stream().map(t -> t.get(0)).collect(Collectors.toList());
+                                } else {
+                                    return result.stream().map(t -> Mapper.convert(t, mapClass)).collect(Collectors.toList());
+                                }
+                            }
+                        }
+                        return result;
                     }
 
                 case REFERENCE:
@@ -278,7 +299,7 @@ public class QueryProcessor {
 
                     try {
                         var result = q.getSingleResult();
-                        return Optional.of(manager.getReference(impl, result));
+                        return Optional.of(manager.getReference(impl, ((Tuple) result).get(0)));
                     } catch (NoResultException ex) {
                         return Optional.empty();
                     }
@@ -287,7 +308,7 @@ public class QueryProcessor {
                     if (Objects.isNull(imp)) {
                         throw new QueryBuilderException("Can't find implementation class for " + original.getCanonicalName() + "!");
                     }
-                    return q.getResultList().stream().map(r -> manager.getReference(imp, r)).collect(Collectors.toList());
+                    return q.getResultList().stream().map(r -> manager.getReference(imp, ((Tuple) r).get(0))).collect(Collectors.toList());
                 default:
                     throw new GenericCodeGenException("Unknown query return type!");
             }
@@ -321,11 +342,15 @@ public class QueryProcessor {
         return result;
     }
 
-    private static Object nullProcess(QueryExecutor executor, EntityManager manager, String query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass, boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType lock, Map<String, Object> hints, List<Filter> filters) {
+    private static Object nullProcess(QueryExecutor executor, EntityManager manager, String
+                                              query, List<Object> params, ResultType resultType, Class<?> returnClass, Class<?> mapClass,
+                                      boolean isNative, boolean modifying, Pageable pageable, FlushModeType flush, LockModeType
+                                              lock, Map<String, Object> hints, List<Filter> filters) {
         return null;
     }
 
-    private static Object createProxy(Tuple tuple, Class<?> mapClass, QueryExecutor<?, ?, ?, ?, ?, ?, ?> executor) {
+    private static Object createProxy(Tuple tuple, Class<?> mapClass, QueryExecutor<?, ?, ?, ?, ?, ?, ?>
+            executor) {
         var elements = tuple.getElements();
         if (elements.size() == 1 && nonNull(tuple.get(0)) && mapClass.isInstance(tuple.get(0))) {
             return tuple.get(0);
@@ -342,7 +367,7 @@ public class QueryProcessor {
         if (logParams && nonNull(params)) {
             return "Query '" + query + "' with params [" + params.stream().map(Objects::toString).map(s -> "(" + s + ")").collect(Collectors.joining(", ")) + "]" + (time != 0 ? " (" + elapsed + "ms.)" : "");
         } else {
-            return "Query '" + query + "'"  + (time != 0 ? " (" + elapsed + "ms.)" : "");
+            return "Query '" + query + "'" + (time != 0 ? " (" + elapsed + "ms.)" : "");
         }
     }
 
