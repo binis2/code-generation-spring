@@ -20,8 +20,12 @@ package net.binis.codegen.spring.query;
  * #L%
  */
 
+import java.util.function.Consumer;
+
 public interface QueryBracket<R> {
 
     R _open();
+    R _if(boolean condition, Consumer<R> query);
+
 
 }

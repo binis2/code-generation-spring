@@ -27,6 +27,7 @@ import net.binis.codegen.spring.query.Queryable;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBracket<T> {
 
@@ -99,6 +100,12 @@ public class BaseQueryNameImpl<T> implements Queryable, QueryScript<T>, QueryBra
     @Override
     public T _open() {
         return (T) executor._open();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public T _if(boolean condition, Consumer<T> query) {
+        return (T) executor._if(condition, query);
     }
 
     @Override
