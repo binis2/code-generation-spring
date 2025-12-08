@@ -942,7 +942,7 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
                 query.append("select ").append(alias).append(' ');
             }
         }
-        if (query.length() == 0 && resultType == QueryProcessor.ResultType.REMOVE) {
+        if (query.isEmpty() && resultType == QueryProcessor.ResultType.REMOVE) {
             query.append("delete ");
         }
         if (!isCustom) {
@@ -1613,11 +1613,11 @@ public abstract class QueryExecutor<T, S, O, R, A, F, U> extends BasePersistence
         joinField = lastIdentifier.toString();
         joinFetch = true;
         handleJoin(null, clause);
-        if (nonNull(where) && where.length() > 0) {
+        if (nonNull(where) && !where.isEmpty()) {
             _stripLast(where, " ");
             _stripToLast(where, " ");
         }
-        if (Objects.isNull(where) || where.length() == 0) {
+        if (Objects.isNull(where) || where.isEmpty()) {
             skipNext = true;
         }
         return this;
