@@ -38,8 +38,8 @@ import static java.util.Objects.nonNull;
 
 public class TupleBackedProjection implements InvocationHandler {
 
-    protected final Tuple tuple;
-    protected final QueryExecutor executor;
+    protected transient final Tuple tuple;
+    protected transient final QueryExecutor executor;
     protected static final Method withRes;
 
     static {

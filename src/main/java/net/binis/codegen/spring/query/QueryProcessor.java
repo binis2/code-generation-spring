@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.binis.codegen.exception.GenericCodeGenException;
 import net.binis.codegen.factory.CodeFactory;
 import net.binis.codegen.map.Mapper;
+import net.binis.codegen.objects.base.enumeration.CodeEnum;
 import net.binis.codegen.spring.query.exception.QueryBuilderException;
 import net.binis.codegen.spring.query.executor.Filter;
 import net.binis.codegen.spring.query.executor.QueryExecutor;
@@ -255,7 +256,7 @@ public class QueryProcessor {
                             return Optional.empty();
                         }
 
-                        if (!Tuple.class.equals(mapClass) && mapClass.isInterface()) {
+                        if (!Tuple.class.equals(mapClass) && mapClass.isInterface() && !CodeEnum.class.isAssignableFrom(mapClass)) {
                             return Optional.of(createProxy(result, mapClass, executor));
                         } else {
                             if (!Tuple.class.equals(mapClass)) {

@@ -173,7 +173,7 @@ public class QueryOrderer<R> implements QueryAccessor, QueryOrderOperation<Objec
 
     @SuppressWarnings("unchecked")
     @Override
-    public <V> Optional<Class<V>> tuple(Class<V> cls) {
+    public <V> Optional<V> tuple(Class<V> cls) {
         return executor.tuple(cls);
     }
 
